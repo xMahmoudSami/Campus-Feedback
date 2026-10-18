@@ -1,0 +1,38 @@
+# Dependencies (install clean inside container)
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Docker files
+.dockerignore
+Dockerfile
+
+# Environment & secrets
+.env
+.env.*
+
+# Git & editors
+.git
+.gitignore
+.vscode
+.idea
+
+# Logs & temp files
+*.log
+logs
+tmp
+temp
+
+# Tests & docs
+test
+tests
+__tests__
+*.test.js
+*.spec.js
+README.md
+
+# OS files
+.DS_Store
+Thumbs.db

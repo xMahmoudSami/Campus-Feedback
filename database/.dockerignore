@@ -1,0 +1,29 @@
+# Docker files
+.dockerignore
+Dockerfile
+
+# Environment & secrets
+.env
+.env.*
+
+# Git & editors
+.git
+.gitignore
+.vscode
+.idea
+
+# Local data directories and backups
+data
+pgdata
+postgres_data
+*.dump
+*.sql.gz
+*.tar
+*.bak
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
