@@ -15,6 +15,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Test coverage and reports
+coverage/
+.nyc_output/
+
 # Database data and volume mounts
 postgres_data/
 pgdata/

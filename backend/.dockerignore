@@ -12,6 +12,7 @@ Dockerfile
 # Environment & secrets
 .env
 .env.*
+!.env.example
 
 # Git & editors
 .git
@@ -25,13 +26,13 @@ logs
 tmp
 temp
 
-# Tests & docs
-test
+# Tests & test output
 tests
-__tests__
+coverage
+.nyc_output
 *.test.js
 *.spec.js
-README.md
+vitest.config.js
 
 # OS files
 .DS_Store
