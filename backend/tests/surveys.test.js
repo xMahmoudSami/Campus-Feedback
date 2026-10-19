@@ -196,8 +196,8 @@ describe('Surveys Endpoints', () => {
                     question_text: params[1],
                     question_type: params[2],
                     options: params[3],
-                    is_required: params[4],
-                    order_index: params[5],
+                    position: params[4],
+                    is_required: params[5],
                   },
                 ],
               };

@@ -234,7 +234,7 @@ describe('Survey Responses & Answers Endpoints', () => {
                     id: 1001,
                     question_id: params[1],
                     answer_text: params[2],
-                    rating_value: params[3],
+                    rating: params[3],
                   },
                 ],
               };

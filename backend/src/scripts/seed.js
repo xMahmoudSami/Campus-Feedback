@@ -1,5 +1,3 @@
-const fs = require('fs');
-const path = require('path');
 let bcrypt;
 try {
   bcrypt = require('bcrypt');
@@ -11,147 +9,151 @@ const db = require('../config/db');
 const env = require('../config/env');
 
 /**
- * Inserts or updates a user idempotently without failing unique constraints.
+ * Ensures an official demo user exists.
+ * - If absent, creates the account with a properly hashed password.
+ * - If present with matching username, email, and role, recognizes the account
+ *   without modifying it or resetting the existing password.
+ * - If a username or email conflicts with an existing account whose identity
+ *   cannot be safely established, throws a clear and actionable Conflict error.
+ *
+ * @param {import('pg').PoolClient} client
+ * @param {object} account
+ * @param {string} account.username
+ * @param {string} account.email
+ * @param {string} account.password
+ * @param {string} account.fullName
+ * @param {'admin'|'student'} account.role
+ * @returns {Promise<{ user: object, created: boolean }>}
  */
-async function upsertUser(client, { username, email, password, role, fullName }) {
-  const passwordHash = await bcrypt.hash(password, 10);
+async function ensureDemoUser(client, { username, email, password, fullName, role }) {
+  const trimmedUsername = username.trim();
+  const trimmedEmail = email.trim();
 
-  // Check if user exists by either username or email
+  // Search for any existing user with this username or email
   const existingRes = await client.query(
-    `SELECT id, username, email FROM users 
-     WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($2) 
-     LIMIT 1;`,
-    [username.trim(), email.trim()]
+    `SELECT id, full_name, username, email, role, created_at
+     FROM users
+     WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($2);`,
+    [trimmedUsername, trimmedEmail]
   );
 
-  if (existingRes.rows.length > 0) {
-    const existingId = existingRes.rows[0].id;
-    const updateRes = await client.query(
-      `UPDATE users
-       SET username = $1, email = $2, password_hash = $3, role = $4, full_name = $5, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $6
-       RETURNING id, username, email, role, full_name;`,
-      [username.trim(), email.trim(), passwordHash, role, fullName, existingId]
-    );
-    return { user: updateRes.rows[0], created: false };
-  } else {
+  const matched = existingRes.rows;
+
+  if (matched.length === 0) {
+    // Brand new account: hash password and insert
+    const passwordHash = await bcrypt.hash(password, 10);
     const insertRes = await client.query(
-      `INSERT INTO users (username, email, password_hash, role, full_name)
+      `INSERT INTO users (full_name, email, username, password_hash, role)
        VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, username, email, role, full_name;`,
-      [username.trim(), email.trim(), passwordHash, role, fullName]
+       RETURNING id, full_name, username, email, role, created_at;`,
+      [fullName, trimmedEmail, trimmedUsername, passwordHash, role]
     );
     return { user: insertRes.rows[0], created: true };
   }
-}
 
-async function seedDatabase() {
-  console.log('--- Starting Database Seeding ---');
+  if (matched.length === 1) {
+    const existing = matched[0];
+    const usernameMatches = existing.username.toLowerCase() === trimmedUsername.toLowerCase();
+    const emailMatches = existing.email.toLowerCase() === trimmedEmail.toLowerCase();
 
-  const args = process.argv.slice(2);
-  const shouldInitSchema = args.includes('--init-schema') || args.includes('-i');
+    // Exact identity match: both username and email match this record
+    if (usernameMatches && emailMatches) {
+      if (existing.role !== role) {
+        throw new Error(
+          `Conflict: Account '${trimmedUsername}' (${trimmedEmail}) exists but has role '${existing.role}' instead of expected role '${role}'.`
+        );
+      }
+      // Recognize existing account: do NOT reset password, do NOT overwrite fields
+      return { user: existing, created: false };
+    }
 
-  if (shouldInitSchema) {
-    console.log('Running schema creation script from docs/schema.sql...');
-    const schemaSqlPath = path.resolve(__dirname, '../../docs/schema.sql');
-    if (fs.existsSync(schemaSqlPath)) {
-      const sqlContent = fs.readFileSync(schemaSqlPath, 'utf8');
-      await db.query(sqlContent);
-      console.log('Schema tables created successfully.');
-    } else {
-      console.warn(`Schema file not found at ${schemaSqlPath}. Skipping table creation.`);
+    // Conflict: username matches but email is different
+    if (usernameMatches && !emailMatches) {
+      throw new Error(
+        `Conflict: Username '${trimmedUsername}' is already taken by existing user with email '${existing.email}'.`
+      );
+    }
+
+    // Conflict: email matches but username is different
+    if (!usernameMatches && emailMatches) {
+      throw new Error(
+        `Conflict: Email '${trimmedEmail}' is already registered to user '${existing.username}'.`
+      );
     }
   }
 
+  // Multiple records matched (e.g. username matches user A and email matches user B)
+  throw new Error(
+    `Conflict: Username '${trimmedUsername}' and email '${trimmedEmail}' conflict with multiple existing user accounts.`
+  );
+}
+
+/**
+ * Helper to ensure Admin user.
+ */
+async function ensureAdminUser(client, details = {}) {
+  return ensureDemoUser(client, {
+    username: details.username || env.seed.adminUsername,
+    email: details.email || env.seed.adminEmail,
+    password: details.password || env.seed.adminPassword,
+    fullName: details.fullName || 'System Administrator',
+    role: 'admin',
+  });
+}
+
+/**
+ * Helper to ensure Student user.
+ */
+async function ensureStudentUser(client, details = {}) {
+  return ensureDemoUser(client, {
+    username: details.username || env.seed.studentUsername,
+    email: details.email || env.seed.studentEmail,
+    password: details.password || env.seed.studentPassword,
+    fullName: details.fullName || 'Demo Student',
+    role: 'student',
+  });
+}
+
+/**
+ * Seeds or safely recognizes only the two official demo accounts inside a managed transaction.
+ * Does not create sample surveys, questions, responses, or feedback.
+ * Does not execute database/init.sql or touch schema definitions.
+ */
+async function seedDatabase() {
+  console.log('--- Starting Backend Account Seeding ---');
+
   const results = await db.withTransaction(async (client) => {
-    // 1. Seed Mandatory Admin Account
-    // Admin: admin / admin@example.com / admin123
-    const adminResult = await upsertUser(client, {
+    // 1. Ensure Official Admin Demo Account
+    const adminResult = await ensureAdminUser(client, {
       username: env.seed.adminUsername,
       email: env.seed.adminEmail,
       password: env.seed.adminPassword,
-      role: 'admin',
       fullName: 'System Administrator',
     });
     console.log(
-      `${adminResult.created ? 'Created' : 'Updated'} Admin User: ${adminResult.user.username} (${adminResult.user.email})`
+      `${adminResult.created ? 'Created' : 'Recognized existing'} Admin User: ${adminResult.user.username} (${adminResult.user.email})`
     );
 
-    // 2. Seed Mandatory Student Account
-    // Student: student / student@example.com / student123
-    const studentResult = await upsertUser(client, {
+    // 2. Ensure Official Student Demo Account
+    const studentResult = await ensureStudentUser(client, {
       username: env.seed.studentUsername,
       email: env.seed.studentEmail,
       password: env.seed.studentPassword,
-      role: 'student',
       fullName: 'Demo Student',
     });
     console.log(
-      `${studentResult.created ? 'Created' : 'Updated'} Student User: ${studentResult.user.username} (${studentResult.user.email})`
+      `${studentResult.created ? 'Created' : 'Recognized existing'} Student User: ${studentResult.user.username} (${studentResult.user.email})`
     );
-
-    // 3. Seed Sample Published Survey if none exists
-    const existingSurveys = await client.query(`SELECT COUNT(*)::int AS count FROM surveys`);
-    let sampleSurveyCreated = false;
-
-    if (existingSurveys.rows[0].count === 0) {
-      console.log('Seeding initial sample course survey...');
-      const sRes = await client.query(
-        `INSERT INTO surveys (title, description, status, created_by)
-         VALUES ($1, $2, 'published', $3)
-         RETURNING id;`,
-        [
-          'Cloud Computing Mid-Term Feedback',
-          'Please share your constructive feedback regarding lectures, lab exercises, and course pacing.',
-          adminResult.user.id,
-        ]
-      );
-      const surveyId = sRes.rows[0].id;
-
-      // Question 1: Rating (1-5)
-      await client.query(
-        `INSERT INTO questions (survey_id, question_text, question_type, options, is_required, order_index)
-         VALUES ($1, $2, 'rating', '[]'::jsonb, true, 1);`,
-        [surveyId, 'How would you rate the overall quality of cloud computing lab exercises? (1-5)']
-      );
-
-      // Question 2: Single Choice
-      await client.query(
-        `INSERT INTO questions (survey_id, question_text, question_type, options, is_required, order_index)
-         VALUES ($1, $2, 'single_choice', $3::jsonb, true, 2);`,
-        [
-          surveyId,
-          'Which topic did you find most engaging?',
-          JSON.stringify(['Docker Containers', 'Microservices Architecture', 'Cloud Storage & Databases', 'Kubernetes / Orchestration']),
-        ]
-      );
-
-      // Question 3: Text
-      await client.query(
-        `INSERT INTO questions (survey_id, question_text, question_type, options, is_required, order_index)
-         VALUES ($1, $2, 'text', '[]'::jsonb, false, 3);`,
-        [surveyId, 'Any suggestions or additional comments for the instructor?']
-      );
-
-      // Draft Survey
-      await client.query(
-        `INSERT INTO surveys (title, description, status, created_by)
-         VALUES ($1, $2, 'draft', $3);`,
-        ['End-of-Term General Curriculum Survey', 'Upcoming survey for final course evaluation.', adminResult.user.id]
-      );
-
-      sampleSurveyCreated = true;
-      console.log('Sample surveys and questions created.');
-    }
 
     return {
       admin: adminResult.user,
       student: studentResult.user,
-      sampleSurveyCreated,
+      adminCreated: adminResult.created,
+      studentCreated: studentResult.created,
     };
   });
 
-  console.log('--- Database Seeding Complete ---');
+  console.log('--- Backend Account Seeding Complete ---');
   return results;
 }
 
@@ -162,12 +164,17 @@ if (require.main === module) {
       process.exit(0);
     })
     .catch((err) => {
-      console.error('Seeding failed:', err);
+      console.error('Seeding failed:', err.message || err);
       process.exit(1);
     });
 }
 
 module.exports = {
   seedDatabase,
-  upsertUser,
+  ensureDemoUser,
+  ensureAdminUser,
+  ensureStudentUser,
+  // Backward-compatibility aliases
+  upsertAdminUser: ensureAdminUser,
+  upsertStudentUser: ensureStudentUser,
 };

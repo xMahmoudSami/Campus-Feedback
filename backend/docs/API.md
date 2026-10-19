@@ -184,7 +184,8 @@ Returns survey listing:
         "status": "published",
         "created_by": 1,
         "created_at": "2026-10-19T17:10:00.000Z",
-        "updated_at": "2026-10-19T17:10:00.000Z",
+        "published_at": "2026-10-19T17:10:00.000Z",
+        "closed_at": null,
         "creator_username": "admin",
         "question_count": 3,
         "response_count": 14,
@@ -212,6 +213,9 @@ Retrieves survey metadata and all configured questions.
       "description": "Please share your feedback.",
       "status": "published",
       "created_by": 1,
+      "created_at": "2026-10-19T17:10:00.000Z",
+      "published_at": "2026-10-19T17:10:00.000Z",
+      "closed_at": null,
       "creator_username": "admin",
       "has_submitted": false,
       "questions": [
@@ -222,16 +226,16 @@ Retrieves survey metadata and all configured questions.
           "question_type": "rating",
           "options": [],
           "is_required": true,
-          "order_index": 1
+          "position": 1
         },
         {
           "id": 11,
           "survey_id": 1,
           "question_text": "Which topic did you find most engaging?",
-          "question_type": "single_choice",
+          "question_type": "multiple_choice",
           "options": ["Docker Containers", "Microservices", "Kubernetes"],
           "is_required": true,
-          "order_index": 2
+          "position": 2
         },
         {
           "id": 12,
@@ -240,7 +244,7 @@ Retrieves survey metadata and all configured questions.
           "question_type": "text",
           "options": [],
           "is_required": false,
-          "order_index": 3
+          "position": 3
         }
       ]
     }
@@ -262,20 +266,20 @@ Creates a new survey and associated questions in an atomic database transaction.
       "question_text": "Rate the SQL assignments difficulty (1-5)",
       "question_type": "rating",
       "is_required": true,
-      "order_index": 1
+      "position": 1
     },
     {
       "question_text": "Which DBMS did you prefer?",
-      "question_type": "single_choice",
+      "question_type": "multiple_choice",
       "options": ["PostgreSQL", "MySQL", "Oracle"],
       "is_required": true,
-      "order_index": 2
+      "position": 2
     },
     {
       "question_text": "General suggestions",
       "question_type": "text",
       "is_required": false,
-      "order_index": 3
+      "position": 3
     }
   ]
 }
@@ -288,7 +292,7 @@ Updates survey metadata (title, description).
 - **Response `200 OK`**
 
 #### `PATCH /surveys/:id/status`
-Updates survey lifecycle status. Closing a survey immediately halts student submissions.
+Updates survey lifecycle status. Closing a survey sets `closed_at = NOW()` and immediately halts student submissions. Publishing sets `published_at = NOW()`.
 - **Access:** `admin` only
 - **Request Body:**
 ```json
@@ -311,18 +315,19 @@ Deletes a survey along with its child records (questions, views, responses, answ
 Submits a student's completed response for a published survey.
 - Validates each answer against question types, allowed choices, and required constraints.
 - Transactional insert: if any answer fails, entire submission is rolled back.
-- Prevents duplicate submissions per student.
+- Prevents duplicate submissions per student (enforced by application and database unique constraint).
 - **Access:** `student` only
 - **Request Body:**
 ```json
 {
   "answers": [
-    { "question_id": 10, "rating_value": 5 },
+    { "question_id": 10, "rating": 5 },
     { "question_id": 11, "answer_text": "Docker Containers" },
     { "question_id": 12, "answer_text": "More hands-on examples would be great." }
   ]
 }
 ```
+*(Both `rating` and `rating_value` are accepted for rating questions)*
 - **Response `201 Created`:**
 ```json
 {
@@ -332,12 +337,14 @@ Submits a student's completed response for a published survey.
     "id": 101,
     "survey_id": 1,
     "student_id": 2,
-    "submitted_at": "2026-10-19T18:15:00.000Z",
+    "status": "completed",
+    "started_at": "2026-10-19T18:15:00.000Z",
+    "completed_at": "2026-10-19T18:15:00.000Z",
     "survey_title": "Cloud Computing Mid-Term Feedback",
     "answers": [
-      { "id": 501, "question_id": 10, "answer_text": "5", "rating_value": 5 },
-      { "id": 502, "question_id": 11, "answer_text": "Docker Containers", "rating_value": null },
-      { "id": 503, "question_id": 12, "answer_text": "More hands-on examples would be great.", "rating_value": null }
+      { "id": 501, "question_id": 10, "answer_text": null, "rating": 5 },
+      { "id": 502, "question_id": 11, "answer_text": "Docker Containers", "rating": null },
+      { "id": 503, "question_id": 12, "answer_text": "More hands-on examples would be great.", "rating": null }
     ]
   }
 }
@@ -365,13 +372,15 @@ Retrieves all student submissions and answers for a survey.
     "responses": [
       {
         "response_id": 101,
-        "submitted_at": "2026-10-19T18:15:00.000Z",
+        "status": "completed",
+        "started_at": "2026-10-19T18:15:00.000Z",
+        "completed_at": "2026-10-19T18:15:00.000Z",
         "student_id": 2,
-        "student_username": "student1",
-        "student_email": "student1@university.edu",
+        "student_username": "student",
+        "student_email": "student@example.com",
         "student_full_name": "Demo Student",
         "answers": [
-          { "question_id": 10, "question_text": "Rate the lab...", "answer_text": "5", "rating_value": 5 }
+          { "question_id": 10, "question_text": "Rate the lab...", "answer_text": null, "rating": 5 }
         ]
       }
     ]
@@ -389,29 +398,61 @@ Retrieves all surveys and answers submitted by the logged-in student.
 ### 3.5 Feedback
 
 #### `POST /feedback`
-Submits feedback regarding a course, facility, or general topic.
+Submits general or survey-linked feedback. Matches `feedback` table schema: `(student_id, survey_id, message)`.
 - **Access:** `student` only
 - **Request Body:**
 ```json
 {
-  "title": "Lab Workstations",
-  "category": "facilities",
-  "message": "Workstations in Lab 3 need Docker Desktop updated."
+  "message": "The Docker container labs were well structured and helpful.",
+  "survey_id": 1
 }
 ```
-- **Response `201 Created`**
+*(Field `survey_id` is optional; if omitted or null, it represents general feedback)*
+- **Response `201 Created`:**
+```json
+{
+  "success": true,
+  "message": "Feedback submitted successfully.",
+  "data": {
+    "id": 1,
+    "student_id": 2,
+    "survey_id": 1,
+    "message": "The Docker container labs were well structured and helpful.",
+    "created_at": "2026-10-19T18:30:00.000Z"
+  }
+}
+```
 
 #### `GET /feedback`
-Retrieves all feedback entries submitted across the system.
+Retrieves all feedback entries submitted across the system, with student and optional survey details.
 - **Access:** `admin` only
-- **Response `200 OK`**
+- **Response `200 OK`:**
+```json
+{
+  "success": true,
+  "data": {
+    "feedback": [
+      {
+        "id": 1,
+        "student_id": 2,
+        "student_username": "student",
+        "student_full_name": "Demo Student",
+        "survey_id": 1,
+        "survey_title": "Cloud Computing Mid-Term Feedback",
+        "message": "The Docker container labs were well structured and helpful.",
+        "created_at": "2026-10-19T18:30:00.000Z"
+      }
+    ]
+  }
+}
+```
 
 ---
 
 ### 3.6 Dashboards
 
 #### `GET /dashboard/admin`
-Computes administrator metrics derived strictly from database records.
+Computes administrator metrics derived strictly from PostgreSQL records without Cartesian-product double counting.
 - **Access:** `admin` only
 - **Response `200 OK`:**
 ```json
@@ -435,10 +476,14 @@ Computes administrator metrics derived strictly from database records.
         "id": 1,
         "title": "Cloud Computing Mid-Term Feedback",
         "status": "published",
-        "total_views": 80,
-        "unique_viewers": 45,
+        "created_at": "2026-10-19T17:10:00.000Z",
+        "published_at": "2026-10-19T17:10:00.000Z",
+        "closed_at": null,
+        "views_count": 80,
+        "attempts_count": 40,
         "completed_responses": 38,
-        "view_to_response_rate_percent": 47.5
+        "completion_rate_percent": 95.0,
+        "view_conversion_percent": 47.5
       }
     ],
     "recent_activity": {
@@ -446,7 +491,8 @@ Computes administrator metrics derived strictly from database records.
       "recent_feedback": [ ... ]
     },
     "metrics_documentation": {
-      "view_to_response_rate": "Calculated as (completed_responses / total_views) * 100. Measures view conversion rate, not university-wide student enrollment participation."
+      "completion_rate": "Calculated as (completed_responses / attempts_count) * 100.",
+      "view_conversion": "Calculated as (completed_responses / views_count) * 100."
     }
   }
 }
@@ -472,14 +518,16 @@ Returns personalized metrics for the authenticated student.
         "title": "Cloud Computing Mid-Term Feedback",
         "question_count": 3,
         "is_completed": true,
-        "submitted_at": "2026-10-19T18:15:00.000Z"
+        "started_at": "2026-10-19T18:10:00.000Z",
+        "completed_at": "2026-10-19T18:15:00.000Z"
       },
       {
         "id": 2,
         "title": "Operating Systems Survey",
         "question_count": 4,
         "is_completed": false,
-        "submitted_at": null
+        "started_at": null,
+        "completed_at": null
       }
     ]
   }

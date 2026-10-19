@@ -2,9 +2,7 @@ const db = require('../config/db');
 
 /**
  * Computes administrative dashboard metrics derived strictly from stored database records.
- * Formula definitions:
- * - view_response_rate_percent: (response_count / NULLIF(view_count, 0)) * 100
- *   Measures the conversion rate of survey views to completed responses.
+ * Follows the non-duplicating subquery pattern specified in database/init.sql.
  * Admin only.
  */
 async function getAdminDashboard() {
@@ -16,38 +14,45 @@ async function getAdminDashboard() {
       (SELECT COUNT(*)::int FROM surveys WHERE status = 'published') AS published_surveys,
       (SELECT COUNT(*)::int FROM surveys WHERE status = 'closed') AS closed_surveys,
       (SELECT COUNT(*)::int FROM users WHERE role = 'student') AS total_students,
+      (SELECT COUNT(*)::int FROM survey_responses) AS total_attempts,
       (SELECT COUNT(*)::int FROM survey_responses) AS total_responses,
+      (SELECT COUNT(*)::int FROM survey_responses WHERE status = 'completed') AS total_completed_responses,
       (SELECT COUNT(*)::int FROM feedback) AS total_feedback,
       (SELECT COUNT(*)::int FROM survey_views) AS total_views;
   `;
 
-  // 2. Per-survey breakdown
+  // 2. Per-survey breakdown without Cartesian product duplication
   const surveysMetricsQuery = `
     SELECT 
       s.id,
       s.title,
       s.status,
       s.created_at,
-      COUNT(DISTINCT sv.id)::int AS total_views,
-      COUNT(DISTINCT sv.user_id)::int AS unique_viewers,
-      COUNT(DISTINCT sr.id)::int AS completed_responses,
-      CASE 
-        WHEN COUNT(DISTINCT sv.id) > 0 
-        THEN ROUND((COUNT(DISTINCT sr.id)::numeric / COUNT(DISTINCT sv.id)::numeric) * 100, 1)
-        ELSE 0.0
-      END::float AS view_to_response_rate_percent
+      s.published_at,
+      s.closed_at,
+      (SELECT COUNT(*)::int FROM survey_views v WHERE v.survey_id = s.id) AS total_views,
+      COUNT(r.id)::int AS attempts,
+      COUNT(r.id) FILTER (WHERE r.status = 'completed')::int AS completed_responses,
+      COALESCE(
+        ROUND(100.0 * COUNT(r.id) FILTER (WHERE r.status = 'completed') / NULLIF(COUNT(r.id), 0), 1),
+        0.0
+      )::float AS completion_rate_percent,
+      COALESCE(
+        ROUND(100.0 * COUNT(r.id) FILTER (WHERE r.status = 'completed') / NULLIF((SELECT COUNT(*) FROM survey_views v WHERE v.survey_id = s.id), 0), 1),
+        0.0
+      )::float AS view_to_response_rate_percent
     FROM surveys s
-    LEFT JOIN survey_views sv ON sv.survey_id = s.id
-    LEFT JOIN survey_responses sr ON sr.survey_id = s.id
+    LEFT JOIN survey_responses r ON r.survey_id = s.id
     GROUP BY s.id
     ORDER BY s.created_at DESC;
   `;
 
-  // 3. Recent responses
+  // 3. Recent completed responses
   const recentResponsesQuery = `
     SELECT 
       sr.id AS response_id,
-      sr.submitted_at,
+      sr.completed_at,
+      sr.completed_at AS submitted_at,
       s.id AS survey_id,
       s.title AS survey_title,
       u.username AS student_username,
@@ -55,7 +60,8 @@ async function getAdminDashboard() {
     FROM survey_responses sr
     JOIN surveys s ON sr.survey_id = s.id
     JOIN users u ON sr.student_id = u.id
-    ORDER BY sr.submitted_at DESC
+    WHERE sr.status = 'completed'
+    ORDER BY sr.completed_at DESC
     LIMIT 5;
   `;
 
@@ -63,13 +69,14 @@ async function getAdminDashboard() {
   const recentFeedbackQuery = `
     SELECT 
       f.id,
-      f.title,
-      f.category,
+      f.survey_id,
+      s.title AS survey_title,
       f.message,
       f.created_at,
       u.username AS student_username
     FROM feedback f
     LEFT JOIN users u ON f.student_id = u.id
+    LEFT JOIN surveys s ON f.survey_id = s.id
     ORDER BY f.created_at DESC
     LIMIT 5;
   `;
@@ -87,7 +94,8 @@ async function getAdminDashboard() {
     published_surveys: 0,
     closed_surveys: 0,
     total_students: 0,
-    total_responses: 0,
+    total_attempts: 0,
+    total_completed_responses: 0,
     total_feedback: 0,
     total_views: 0,
   };
@@ -101,18 +109,24 @@ async function getAdminDashboard() {
         closed: counts.closed_surveys,
       },
       students_count: counts.total_students,
-      responses_count: counts.total_responses,
+      responses_count: counts.total_completed_responses !== undefined ? counts.total_completed_responses : (counts.total_responses || 0),
+      attempts_count: counts.total_attempts !== undefined ? counts.total_attempts : (counts.total_responses || 0),
       feedback_count: counts.total_feedback,
       views_count: counts.total_views,
     },
-    surveys_metrics: metricsRes.rows,
+    surveys_metrics: metricsRes.rows.map((row) => ({
+      ...row,
+      // Provide backwards-compatible field aliases
+      response_count: row.completed_responses,
+    })),
     recent_activity: {
       recent_responses: responsesRes.rows,
       recent_feedback: feedbackRes.rows,
     },
     metrics_documentation: {
+      completion_rate: 'Calculated as (completed_responses / attempts) * 100. Measures rate of started attempts that reach completion.',
       view_to_response_rate:
-        'Calculated as (completed_responses / total_views) * 100. Measures view conversion rate, not university-wide student enrollment participation.',
+        'Calculated as (completed_responses / total_views) * 100. Measures view conversion rate, not university-wide enrollment participation.',
     },
   };
 }
@@ -132,17 +146,19 @@ async function getStudentDashboard(studentId) {
       s.description,
       s.status,
       s.created_at,
+      s.published_at,
       (SELECT COUNT(*)::int FROM questions q WHERE q.survey_id = s.id) AS question_count,
       sr.id AS response_id,
-      sr.submitted_at,
-      CASE WHEN sr.id IS NOT NULL THEN true ELSE false END AS is_completed
+      sr.status AS response_status,
+      sr.completed_at,
+      CASE WHEN sr.id IS NOT NULL AND sr.status = 'completed' THEN true ELSE false END AS is_completed
     FROM surveys s
     LEFT JOIN survey_responses sr ON sr.survey_id = s.id AND sr.student_id = $1
     WHERE s.status = 'published'
     ORDER BY s.created_at DESC;
   `;
 
-  // 2. Feedback submitted by this student
+  // 2. Feedback count submitted by this student
   const feedbackCountQuery = `
     SELECT COUNT(*)::int AS count FROM feedback WHERE student_id = $1;
   `;
@@ -171,8 +187,9 @@ async function getStudentDashboard(studentId) {
       description: s.description,
       question_count: s.question_count,
       created_at: s.created_at,
+      published_at: s.published_at,
       is_completed: s.is_completed,
-      submitted_at: s.submitted_at,
+      submitted_at: s.completed_at,
     })),
   };
 }

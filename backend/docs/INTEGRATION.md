@@ -9,18 +9,19 @@ This document outlines the integration instructions and contracts for team membe
 
 ## 1. Instructions for the Database Team Member (`database/`)
 
-The backend has established the SQL contract in [`backend/docs/schema.sql`](./schema.sql).
+The database schema source of truth is established in `database/init.sql`.
 
 ### Guidance for Database Team:
-- The backend queries follow the proposed SQL contract documented in [`backend/docs/schema.sql`](./schema.sql) and [`backend/docs/DATABASE_COMPATIBILITY.md`](./DATABASE_COMPATIBILITY.md).
-- The database team member has full ownership over `database/` and can adapt or implement `database/init.sql` matching these table names, column names, and constraints.
+- The backend queries follow the finalized SQL schema defined in `database/init.sql` and documented in [`backend/docs/DATABASE_COMPATIBILITY.md`](./DATABASE_COMPATIBILITY.md).
+- The database team member has full ownership over `database/`.
 - **PostgreSQL Configuration Settings**:
   - Default Database Name: `student_feedback_db`
   - Default User: `feedback_user`
   - Default Password: `feedback_password`
   - Default Port: `5432`
 - **Initial Demo Accounts**:
-  - The backend provides `npm run seed` to insert/update the mandatory demo accounts once the database is available. Alternatively, the database team may include equivalent initial INSERT statements directly in `database/init.sql`.
+  - `database/init.sql` focuses solely on schema creation without hardcoded seed users or sample surveys.
+  - The backend provides `npm run seed` to provision or recognize the two official demo accounts (`admin` and `student`) within a managed transaction once PostgreSQL is up.
 
 ---
 

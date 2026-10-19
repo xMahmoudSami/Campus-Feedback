@@ -1,88 +1,43 @@
-# Database Compatibility & Integration Status
+# Database Schema Compatibility & Integration Report
 
-## 1. Inspection Results of Existing Database Directory (`database/`)
-
-An audit of the repository outside `backend/` was performed in strict read-only mode:
-- **Status of `database/`:** As of the latest check, the `database/` directory contains only `.dockerignore`.
-- **Status of Schema Files:** No `database/init.sql` or migration script has been committed yet by the database team member.
-- **Root Orchestration (`compose.yaml`):** The file is currently 0 bytes (unpopulated), pending completion by the containerization team member.
-
-Because the database initialization script is not yet present, the backend cannot claim compatibility against an active database implementation. Instead, the backend has implemented the agreed conceptual model and defined a clear, strict contract in [`backend/docs/schema.sql`](./schema.sql) and [`backend/docs/SCHEMA_CONTRACT.md`](./SCHEMA_CONTRACT.md).
+## 1. Source of Truth
+The database schema defined in [`database/init.sql`](file:///c:/_Nero/_University%20Work/Cloud%20Computing/Section%20Eng.%20Naser%20Abdellatif/Student_Feedback_System/database/init.sql) and documented in [`database/README.md`](file:///c:/_Nero/_University%20Work/Cloud%20Computing/Section%20Eng.%20Naser%20Abdellatif/Student_Feedback_System/database/README.md) is the authoritative source of truth. The backend implementation has been updated to align 100% with this schema.
 
 ---
 
-## 2. Table-by-Table Contract Expected by the Backend
+## 2. Table-by-Table Alignment Summary
 
-The backend SQL queries are parameterized and strictly expect the following tables, columns, and constraints:
-
-### 1. `users` Table
-- `id`: Integer primary key (`SERIAL PRIMARY KEY` or identity).
-- `username`: `VARCHAR(50) UNIQUE NOT NULL`.
-- `email`: `VARCHAR(255) UNIQUE NOT NULL`.
-- `password_hash`: `VARCHAR(255) NOT NULL` (stores 60-character bcrypt hash).
-- `role`: `VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'student'))`.
-- `full_name`: `VARCHAR(100) NULL`.
-- `created_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`.
-- `updated_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`.
-
-### 2. `surveys` Table
-- `id`: Integer primary key (`SERIAL PRIMARY KEY`).
-- `title`: `VARCHAR(255) NOT NULL`.
-- `description`: `TEXT NULL`.
-- `status`: `VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'closed'))`.
-- `created_by`: `INTEGER NULL REFERENCES users(id) ON DELETE SET NULL`.
-- `created_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`.
-- `updated_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`.
-
-### 3. `questions` Table
-- `id`: Integer primary key (`SERIAL PRIMARY KEY`).
-- `survey_id`: `INTEGER NOT NULL REFERENCES surveys(id) ON DELETE CASCADE`.
-- `question_text`: `TEXT NOT NULL`.
-- `question_type`: `VARCHAR(20) NOT NULL CHECK (question_type IN ('text', 'single_choice', 'rating'))`.
-- `options`: `JSONB DEFAULT '[]'::jsonb` (array of string choices for `single_choice`).
-- `is_required`: `BOOLEAN NOT NULL DEFAULT true`.
-- `order_index`: `INTEGER NOT NULL DEFAULT 0`.
-- `created_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`.
-
-### 4. `survey_views` Table
-- `id`: Integer primary key (`SERIAL PRIMARY KEY`).
-- `survey_id`: `INTEGER NOT NULL REFERENCES surveys(id) ON DELETE CASCADE`.
-- `user_id`: `INTEGER NULL REFERENCES users(id) ON DELETE SET NULL`.
-- `ip_address`: `VARCHAR(45) NULL`.
-- `user_agent`: `TEXT NULL`.
-- `viewed_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`.
-
-### 5. `survey_responses` Table
-- `id`: Integer primary key (`SERIAL PRIMARY KEY`).
-- `survey_id`: `INTEGER NOT NULL REFERENCES surveys(id) ON DELETE CASCADE`.
-- `student_id`: `INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE`.
-- `submitted_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`.
-- **Constraint:** `CONSTRAINT unique_survey_student_submission UNIQUE (survey_id, student_id)` — mandatory for deduplication.
-
-### 6. `answers` Table
-- `id`: Integer primary key (`SERIAL PRIMARY KEY`).
-- `response_id`: `INTEGER NOT NULL REFERENCES survey_responses(id) ON DELETE CASCADE`.
-- `question_id`: `INTEGER NOT NULL REFERENCES questions(id) ON DELETE CASCADE`.
-- `answer_text`: `TEXT NULL`.
-- `rating_value`: `INTEGER NULL CHECK (rating_value IS NULL OR (rating_value >= 1 AND rating_value <= 5))`.
-- `created_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`.
-- **Constraint:** `CONSTRAINT unique_response_question_answer UNIQUE (response_id, question_id)`.
-
-### 7. `feedback` Table
-- `id`: Integer primary key (`SERIAL PRIMARY KEY`).
-- `student_id`: `INTEGER NULL REFERENCES users(id) ON DELETE SET NULL`.
-- `title`: `VARCHAR(255) NULL`.
-- `message`: `TEXT NOT NULL`.
-- `category`: `VARCHAR(50) DEFAULT 'general'`.
-- `created_at`: `TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`.
+| Table | Database Schema (`database/init.sql`) | Backend Query Status | Notes & Fixes Applied |
+| :--- | :--- | :--- | :--- |
+| **`users`** | `id`, `full_name`, `email` (UK), `username` (UK), `password_hash`, `role` (`admin`/`student`), `created_at` | Fully Aligned | `full_name` is non-null. Passwords hashed with bcrypt (compatible with `pgcrypto` crypt function). |
+| **`surveys`** | `id`, `title`, `description`, `status` (`draft`/`published`/`closed`), `created_by` (FK), `created_at`, `published_at`, `closed_at` | Fully Aligned | Replaced non-existent `updated_at` with lifecycle timestamps (`published_at`, `closed_at`). |
+| **`questions`** | `id`, `survey_id` (FK), `question_text`, `question_type` (`rating`/`text`/`multiple_choice`), `options` (JSONB), `position`, `is_required` | Fully Aligned | Replaced `order_index` with schema column `position`. Supported canonical type `multiple_choice` (transparently accepting `single_choice` and mapping to `multiple_choice`). |
+| **`survey_responses`** | `id`, `survey_id` (FK), `student_id` (FK), `status` (`in_progress`/`completed`), `started_at`, `completed_at`, `UNIQUE(survey_id, student_id)` | Fully Aligned | Completed submissions record `status = 'completed'`, `started_at = NOW()`, `completed_at = NOW()`. Enforces single attempt per student. |
+| **`answers`** | `id`, `response_id` (FK), `question_id` (FK), `answer_text`, `rating` (1-5), `UNIQUE(response_id, question_id)` | Fully Aligned | Replaced `rating_value` with schema column `rating`. Check constraint `1 <= rating <= 5` verified. |
+| **`feedback`** | `id`, `student_id` (FK), `survey_id` (FK, nullable), `message`, `created_at` | Fully Aligned | Replaced hypothetical `title`/`category` columns with actual schema columns `student_id, survey_id, message, created_at`. |
+| **`survey_views`** | `id`, `survey_id` (FK), `student_id` (FK), `viewed_at` | Fully Aligned | Replaced `user_id/ip_address` with schema columns `survey_id, student_id, viewed_at`. |
 
 ---
 
-## 3. Items Pending Confirmation from Database Team Member
+## 3. Metrics Calculation Alignment
 
-When the database team member prepares `database/init.sql`, they must verify:
-1. **Column Naming Alignment:** Ensure `student_id` is used in `survey_responses` and `feedback` (or notify the backend team if named `user_id`).
-2. **Options Format:** Ensure `questions.options` is stored as `JSONB` or text JSON.
-3. **Rating Constraints:** Ensure the rating scale is `1` through `5` integer values.
-4. **Unique Deduplication:** Ensure `UNIQUE (survey_id, student_id)` is defined on `survey_responses`.
-5. **Initial Seeding:** The database team member can either include initial seed statements in `database/init.sql` or rely on the backend's `npm run seed` command once containers are linked.
+The backend admin dashboard adopts the exact non-duplicating SQL subquery pattern specified in `database/init.sql`:
+- **Views**: `(SELECT COUNT(*)::int FROM survey_views v WHERE v.survey_id = s.id)`
+- **Attempts**: `COUNT(r.id)`
+- **Completed Responses**: `COUNT(r.id) FILTER (WHERE r.status = 'completed')`
+- **Completion Rate**: `ROUND(100.0 * COUNT(r.id) FILTER (WHERE r.status = 'completed') / NULLIF(COUNT(r.id), 0), 1)`
+- **View-to-Response Rate**: `ROUND(100.0 * COUNT(r.id) FILTER (WHERE r.status = 'completed') / NULLIF((SELECT COUNT(*) FROM survey_views v WHERE v.survey_id = s.id), 0), 1)`
+
+---
+
+## 4. Provisioning of the Official Demo Accounts
+
+`database/init.sql` serves as a clean DDL file responsible solely for table definitions, constraints, and indexes. It contains no legacy demo accounts or sample surveys.
+
+The backend seed script [`backend/src/scripts/seed.js`](file:///c:/_Nero/_University%20Work/Cloud%20Computing/Section%20Eng.%20Naser%20Abdellatif/Student_Feedback_System/backend/src/scripts/seed.js) establishes the two official demo accounts inside a managed transaction:
+- **Admin (`admin@example.com` / `admin123` / role: `admin`):**
+  Created or recognized with username `admin` and email `admin@example.com`.
+- **Student (`student@example.com` / `student123` / role: `student`):**
+  Created or recognized with username `student` and email `student@example.com`.
+
+All surveys, questions, responses, and feedback are created dynamically through normal application REST endpoints.

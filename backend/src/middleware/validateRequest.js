@@ -36,12 +36,18 @@ function validateLoginBody(req, res, next) {
 
 /**
  * Validates survey creation payload.
+ * Schema allows: rating, text, multiple_choice.
+ * (Transparently normalizes 'single_choice' to 'multiple_choice' for client flexibility)
  */
 function validateSurveyCreate(req, res, next) {
   const { title, description, status, questions } = req.body || {};
 
   if (!title || typeof title !== 'string' || !title.trim()) {
     return next(new ValidationError("Field 'title' is required and must be a non-empty string."));
+  }
+
+  if (title.length > 200) {
+    return next(new ValidationError("Field 'title' must not exceed 200 characters."));
   }
 
   if (status && !['draft', 'published', 'closed'].includes(status)) {
@@ -59,19 +65,24 @@ function validateSurveyCreate(req, res, next) {
         return next(new ValidationError(`Question at index ${i} requires a non-empty 'question_text'.`));
       }
 
-      if (!['text', 'single_choice', 'rating'].includes(q.question_type)) {
+      // Normalize single_choice to multiple_choice to match database schema constraint
+      if (q.question_type === 'single_choice') {
+        q.question_type = 'multiple_choice';
+      }
+
+      if (!['text', 'rating', 'multiple_choice'].includes(q.question_type)) {
         return next(
           new ValidationError(
-            `Question at index ${i} has invalid 'question_type' ('${q.question_type}'). Must be 'text', 'single_choice', or 'rating'.`
+            `Question at index ${i} has invalid 'question_type' ('${q.question_type}'). Supported types in database: 'rating', 'text', 'multiple_choice'.`
           )
         );
       }
 
-      if (q.question_type === 'single_choice') {
+      if (q.question_type === 'multiple_choice') {
         if (!Array.isArray(q.options) || q.options.length < 2) {
           return next(
             new ValidationError(
-              `Question at index ${i} is single_choice and must have an 'options' array with at least 2 choices.`
+              `Question at index ${i} is multiple_choice and must have an 'options' array with at least 2 choices.`
             )
           );
         }
@@ -115,20 +126,21 @@ function validateResponseSubmission(req, res, next) {
 
 /**
  * Validates feedback creation payload.
+ * Schema columns: student_id, survey_id (optional), message, created_at.
  */
 function validateFeedbackCreate(req, res, next) {
-  const { message, title, category } = req.body || {};
+  const { message, survey_id } = req.body || {};
 
   if (!message || typeof message !== 'string' || !message.trim()) {
     return next(new ValidationError("Field 'message' is required and must be a non-empty string."));
   }
 
-  if (category && typeof category !== 'string') {
-    return next(new ValidationError("Field 'category' must be a string if provided."));
-  }
-
-  if (title && typeof title !== 'string') {
-    return next(new ValidationError("Field 'title' must be a string if provided."));
+  if (survey_id !== undefined && survey_id !== null) {
+    const num = Number(survey_id);
+    if (!Number.isInteger(num) || num <= 0) {
+      return next(new ValidationError("Field 'survey_id' must be a valid positive integer if provided."));
+    }
+    req.body.survey_id = num;
   }
 
   next();

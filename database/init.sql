@@ -1,4 +1,4 @@
--- Student Feedback System - initial schema + seed data
+-- Student Feedback System - initial schema
 -- Runs automatically ONLY the first time the database volume is empty.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -88,24 +88,7 @@ CREATE INDEX idx_answers_response   ON answers(response_id);
 CREATE INDEX idx_feedback_student   ON feedback(student_id);
 CREATE INDEX idx_views_survey       ON survey_views(survey_id);
 
--- ========== Seed users (accounts are pre-created) ==========
--- Passwords hashed with bcrypt via pgcrypto (compatible with Node bcrypt/bcryptjs).
--- CHANGE these passwords before any real use.
-INSERT INTO users (full_name, email, username, password_hash, role) VALUES
- ('Admin',     'admin@school.com',    'admin',    crypt('Admin@123',   gen_salt('bf', 10)), 'admin'),
- ('Student 1', 'student1@school.com', 'student1', crypt('Student@123', gen_salt('bf', 10)), 'student'),
- ('Student 2', 'student2@school.com', 'student2', crypt('Student@123', gen_salt('bf', 10)), 'student');
-
--- ========== Optional sample survey (delete if not wanted) ==========
-INSERT INTO surveys (title, description, status, created_by, published_at)
-VALUES ('Course Feedback', 'Tell us what you think about the course', 'published', 1, NOW());
-
-INSERT INTO questions (survey_id, question_text, question_type, options, position) VALUES
- (1, 'How would you rate the course overall?', 'rating', NULL, 1),
- (1, 'How is the pace of the lectures?', 'multiple_choice', '["Too slow","Just right","Too fast"]', 2),
- (1, 'Any suggestions for improvement?', 'text', NULL, 3);
-
--- ========== Example statistics query (admin dashboard) ==========
+-- ========== Example statistics query (admin dashboard reference) ==========
 -- SELECT s.id, s.title,
 --        (SELECT COUNT(*) FROM survey_views v WHERE v.survey_id = s.id)                         AS views,
 --        COUNT(r.id)                                                                            AS attempts,

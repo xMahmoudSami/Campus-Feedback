@@ -11,7 +11,7 @@ const {
  *
  * @param {number} surveyId
  * @param {number} studentId
- * @param {Array<{ question_id: number, answer_text?: string, rating_value?: number }>} answers
+ * @param {Array<{ question_id: number, answer_text?: string, rating?: number, rating_value?: number }>} answers
  */
 async function submitResponse(surveyId, studentId, answers) {
   // 1. Fetch survey details and verify status
@@ -31,7 +31,7 @@ async function submitResponse(surveyId, studentId, answers) {
     );
   }
 
-  // 2. Check for duplicate submission
+  // 2. Check for duplicate completed submission (enforces one attempt per student)
   const existingSubmissionRes = await db.query(
     `SELECT id FROM survey_responses WHERE survey_id = $1 AND student_id = $2`,
     [surveyId, studentId]
@@ -43,9 +43,10 @@ async function submitResponse(surveyId, studentId, answers) {
 
   // 3. Fetch questions for validation
   const questionsRes = await db.query(
-    `SELECT id, question_text, question_type, options, is_required
+    `SELECT id, question_text, question_type, options, is_required, position
      FROM questions
-     WHERE survey_id = $1`,
+     WHERE survey_id = $1
+     ORDER BY position ASC, id ASC`,
     [surveyId]
   );
 
@@ -57,7 +58,6 @@ async function submitResponse(surveyId, studentId, answers) {
   // Map questions by ID for fast lookup
   const questionMap = new Map();
   for (const q of surveyQuestions) {
-    // Parse options if stored as string/json
     let optionsArray = [];
     if (Array.isArray(q.options)) {
       optionsArray = q.options;
@@ -71,7 +71,7 @@ async function submitResponse(surveyId, studentId, answers) {
     questionMap.set(q.id, { ...q, options: optionsArray });
   }
 
-  // Map answers by question_id to check for duplicate answers in payload and completeness
+  // Map answers by question_id
   const answerMap = new Map();
   for (const item of answers) {
     const qId = Number(item.question_id);
@@ -101,7 +101,7 @@ async function submitResponse(surveyId, studentId, answers) {
     }
 
     let finalAnswerText = null;
-    let finalRatingValue = null;
+    let finalRating = null;
 
     if (question.question_type === 'text') {
       const textVal = submitted.answer_text !== undefined ? String(submitted.answer_text).trim() : '';
@@ -109,7 +109,7 @@ async function submitResponse(surveyId, studentId, answers) {
         throw new ValidationError(`Question "${question.question_text}" requires a non-empty text response.`);
       }
       finalAnswerText = textVal || null;
-    } else if (question.question_type === 'single_choice') {
+    } else if (question.question_type === 'multiple_choice' || question.question_type === 'single_choice') {
       const choiceVal = submitted.answer_text !== undefined ? String(submitted.answer_text).trim() : '';
       if (!choiceVal) {
         if (question.is_required) {
@@ -124,7 +124,7 @@ async function submitResponse(surveyId, studentId, answers) {
         finalAnswerText = choiceVal;
       }
     } else if (question.question_type === 'rating') {
-      const rawRating = submitted.rating_value !== undefined ? submitted.rating_value : submitted.answer_text;
+      const rawRating = submitted.rating !== undefined ? submitted.rating : (submitted.rating_value !== undefined ? submitted.rating_value : submitted.answer_text);
       const ratingNum = Number(rawRating);
 
       if (!Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
@@ -132,20 +132,20 @@ async function submitResponse(surveyId, studentId, answers) {
           `Question "${question.question_text}" requires an integer rating value between 1 and 5.`
         );
       }
-      finalRatingValue = ratingNum;
+      finalRating = ratingNum;
       finalAnswerText = String(ratingNum);
     }
 
     sanitizedAnswers.push({
       question_id: qId,
       answer_text: finalAnswerText,
-      rating_value: finalRatingValue,
+      rating: finalRating,
     });
   }
 
   // 5. Execute transactional insert of response header and answers
   return await db.withTransaction(async (client) => {
-    // Double check duplicate in transaction for race conditions
+    // Lock and check duplicate in transaction to prevent race conditions
     const raceCheck = await client.query(
       `SELECT id FROM survey_responses WHERE survey_id = $1 AND student_id = $2 FOR UPDATE`,
       [surveyId, studentId]
@@ -154,32 +154,36 @@ async function submitResponse(surveyId, studentId, answers) {
       throw new ConflictError('You have already submitted a response for this survey.');
     }
 
-    // Insert response header
+    // Insert response header matching schema: status = 'completed', completed_at = NOW()
     const responseInsertRes = await client.query(
-      `INSERT INTO survey_responses (survey_id, student_id)
-       VALUES ($1, $2)
-       RETURNING id, survey_id, student_id, submitted_at`,
+      `INSERT INTO survey_responses (survey_id, student_id, status, started_at, completed_at)
+       VALUES ($1, $2, 'completed', NOW(), NOW())
+       RETURNING id, survey_id, student_id, status, started_at, completed_at;`,
       [surveyId, studentId]
     );
 
     const responseRecord = responseInsertRes.rows[0];
 
-    // Insert answer rows
+    // Insert answer rows: column is 'rating', matching database/init.sql
     const insertedAnswers = [];
     for (const ans of sanitizedAnswers) {
       const ansRes = await client.query(
-        `INSERT INTO answers (response_id, question_id, answer_text, rating_value)
+        `INSERT INTO answers (response_id, question_id, answer_text, rating)
          VALUES ($1, $2, $3, $4)
-         RETURNING id, question_id, answer_text, rating_value`,
-        [responseRecord.id, ans.question_id, ans.answer_text, ans.rating_value]
+         RETURNING id, question_id, answer_text, rating;`,
+        [responseRecord.id, ans.question_id, ans.answer_text, ans.rating]
       );
-      insertedAnswers.push(ansRes.rows[0]);
+      insertedAnswers.push({
+        ...ansRes.rows[0],
+        rating_value: ansRes.rows[0].rating, // alias for client compatibility
+      });
     }
 
     return {
       message: 'Survey response submitted successfully.',
       response: {
         ...responseRecord,
+        submitted_at: responseRecord.completed_at,
         survey_title: survey.title,
         answers: insertedAnswers,
       },
@@ -202,7 +206,10 @@ async function getSurveyResponses(surveyId) {
   const responsesRes = await db.query(
     `SELECT 
        sr.id AS response_id,
-       sr.submitted_at,
+       sr.status,
+       sr.started_at,
+       sr.completed_at,
+       sr.completed_at AS submitted_at,
        u.id AS student_id,
        u.username AS student_username,
        u.email AS student_email,
@@ -213,9 +220,11 @@ async function getSurveyResponses(surveyId) {
              'question_id', q.id,
              'question_text', q.question_text,
              'question_type', q.question_type,
+             'position', q.position,
              'answer_text', a.answer_text,
-             'rating_value', a.rating_value
-           ) ORDER BY q.order_index ASC, q.id ASC
+             'rating', a.rating,
+             'rating_value', a.rating
+           ) ORDER BY q.position ASC, q.id ASC
          ) FILTER (WHERE q.id IS NOT NULL),
          '[]'::json
        ) AS answers
@@ -225,7 +234,7 @@ async function getSurveyResponses(surveyId) {
      LEFT JOIN questions q ON a.question_id = q.id
      WHERE sr.survey_id = $1
      GROUP BY sr.id, u.id
-     ORDER BY sr.submitted_at DESC;`,
+     ORDER BY sr.completed_at DESC NULLS LAST, sr.started_at DESC;`,
     [surveyId]
   );
 
@@ -247,19 +256,24 @@ async function getMyResponses(studentId) {
     SELECT 
       sr.id AS response_id,
       sr.survey_id,
+      sr.status,
+      sr.started_at,
+      sr.completed_at,
+      sr.completed_at AS submitted_at,
       s.title AS survey_title,
       s.description AS survey_description,
       s.status AS survey_status,
-      sr.submitted_at,
       COALESCE(
         json_agg(
           json_build_object(
             'question_id', q.id,
             'question_text', q.question_text,
             'question_type', q.question_type,
+            'position', q.position,
             'answer_text', a.answer_text,
-            'rating_value', a.rating_value
-          ) ORDER BY q.order_index ASC, q.id ASC
+            'rating', a.rating,
+            'rating_value', a.rating
+          ) ORDER BY q.position ASC, q.id ASC
         ) FILTER (WHERE q.id IS NOT NULL),
         '[]'::json
       ) AS answers
@@ -269,7 +283,7 @@ async function getMyResponses(studentId) {
     LEFT JOIN questions q ON a.question_id = q.id
     WHERE sr.student_id = $1
     GROUP BY sr.id, s.id
-    ORDER BY sr.submitted_at DESC;
+    ORDER BY sr.completed_at DESC NULLS LAST, sr.started_at DESC;
   `;
 
   const result = await db.query(queryText, [studentId]);
