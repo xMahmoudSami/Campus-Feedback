@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign in – Campus Feedback</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="auth-layout">
+    <!-- Left panel – illustration + quotes -->
+    <div class="auth-hero">
+      <div class="auth-hero-inner">
+        <div class="auth-brand">
+          <div class="auth-brand-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          </div>
+          <span>Campus Feedback</span>
+        </div>
+
+        <h1 class="auth-hero-title">Your voice shapes<br/>how we teach.</h1>
+        <p class="auth-hero-sub">Thousands of students share course feedback every semester. Join them and help instructors improve what matters.</p>
+
+        <div class="auth-quotes">
+          <div class="auth-quote active" data-q="0">
+            <p>“Great course content and delivery.”</p>
+            <div class="auth-quote-author">
+              <span class="quote-avatar" style="background:#818cf8">AH</span>
+              <div>
+                <strong>Ahmed Hassan</strong>
+                <span>student1@example.com</span>
+              </div>
+            </div>
+          </div>
+          <div class="auth-quote" data-q="1">
+            <p>“Excellent instructor and resources.”</p>
+            <div class="auth-quote-author">
+              <span class="quote-avatar" style="background:#34d399">SA</span>
+              <div>
+                <strong>Sara Ahmed</strong>
+                <span>student2@example.com</span>
+              </div>
+            </div>
+          </div>
+          <div class="auth-quote" data-q="2">
+            <p>“Need more study spaces.”</p>
+            <div class="auth-quote-author">
+              <span class="quote-avatar" style="background:#f472b6">MA</span>
+              <div>
+                <strong>Mohamed Ali</strong>
+                <span>student3@example.com</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="auth-quote-dots">
+          <button type="button" class="dot active" data-dot="0" aria-label="Quote 1"></button>
+          <button type="button" class="dot" data-dot="1" aria-label="Quote 2"></button>
+          <button type="button" class="dot" data-dot="2" aria-label="Quote 3"></button>
+        </div>
+
+        <!-- Decorative floating cards -->
+        <div class="float-card float-1">
+          <span class="float-icon float-bar"></span>
+          <div>
+            <strong>128 responses</strong>
+            <span>this week</span>
+          </div>
+        </div>
+        <div class="float-card float-2">
+          <span class="float-icon float-star"></span>
+          <div>
+            <strong>4.6 avg</strong>
+            <span>course rating</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right panel – form -->
+    <div class="auth-form-side">
+      <div class="auth-form-wrap animate-in">
+        <div class="auth-mobile-brand">
+          <div class="auth-brand-icon small">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          </div>
+          <span>Campus Feedback</span>
+        </div>
+
+        <h2>Welcome back</h2>
+        <p class="auth-form-sub">Sign in to continue to your dashboard</p>
+
+        <form id="login-form" novalidate>
+          <div class="form-group">
+            <label class="form-label" for="email">Email address</label>
+            <input type="email" id="email" class="form-control" placeholder="email or username" required autocomplete="email" />
+          </div>
+          <div class="form-group">
+            <div class="d-flex justify-between align-center">
+              <label class="form-label" for="password">Password</label>
+            </div>
+            <div class="password-wrap">
+              <input type="password" id="password" class="form-control" placeholder="Enter your password" required autocomplete="current-password" />
+              <button type="button" class="password-toggle" id="toggle-pw" aria-label="Show password">Show</button>
+            </div>
+          </div>
+          <div id="login-error" class="form-error auth-error" style="display:none"></div>
+          <button type="submit" id="login-btn" class="btn btn-primary btn-block btn-lg btn-shine">
+            <span class="btn-text">Sign in</span>
+          </button>
+        </form>
+
+        <p class="auth-switch">
+          New here?
+          <a href="signup.html">Create a student account</a>
+        </p>
+
+        <div class="auth-demo">
+          <div class="auth-demo-title">Quick demo access</div>
+          <button type="button" class="demo-chip" data-email="admin@example.com" data-pass="admin123">
+            <span class="demo-role">Admin</span>
+            <span class="demo-cred">admin@example.com</span>
+          </button>
+          <button type="button" class="demo-chip" data-email="student@example.com" data-pass="student123">
+            <span class="demo-role student">Student</span>
+            <span class="demo-cred">student@example.com</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/pages/login.js"></script>
+</body>
+</html>

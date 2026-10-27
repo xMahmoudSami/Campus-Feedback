@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="refresh" content="0;url=login.html" />
+  <title>Student Feedback System</title>
+  <script>
+    // Client-side redirect based on auth
+    (function () {
+      try {
+        var token = localStorage.getItem('token');
+        var user = JSON.parse(localStorage.getItem('user') || 'null');
+        if (token && user) {
+          if (user.role === 'admin') {
+            window.location.replace('admin/dashboard.html');
+            return;
+          }
+          if (user.role === 'student') {
+            window.location.replace('student/dashboard.html');
+            return;
+          }
+        }
+      } catch (e) { /* ignore */ }
+      window.location.replace('login.html');
+    })();
+  </script>
+</head>
+<body>
+  <p>Redirecting…</p>
+</body>
+</html>

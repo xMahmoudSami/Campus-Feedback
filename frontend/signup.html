@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create account – Campus Feedback</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="auth-layout">
+    <div class="auth-hero">
+      <div class="auth-hero-inner">
+        <div class="auth-brand">
+          <div class="auth-brand-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          </div>
+          <span>Campus Feedback</span>
+        </div>
+
+        <h1 class="auth-hero-title">Takes 30 seconds.<br/>Helps for a semester.</h1>
+        <p class="auth-hero-sub">Create a free student account, answer open surveys, and leave general feedback anytime.</p>
+
+        <ul class="auth-features">
+          <li>
+            <span class="feat-icon"></span>
+            <div>
+              <strong>Open surveys in one place</strong>
+              <span>Course evals, facilities, library — no more scattered links</span>
+            </div>
+          </li>
+          <li>
+            <span class="feat-icon"></span>
+            <div>
+              <strong>Track what you submitted</strong>
+              <span>See your history of responses and feedback</span>
+            </div>
+          </li>
+          <li>
+            <span class="feat-icon"></span>
+            <div>
+              <strong>Anonymous where it matters</strong>
+              <span>Instructors see trends, not your name on every answer</span>
+            </div>
+          </li>
+        </ul>
+
+        <div class="float-card float-1">
+          <span class="float-icon float-grad"></span>
+          <div>
+            <strong>42 students</strong>
+            <span>active this month</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="auth-form-side">
+      <div class="auth-form-wrap animate-in">
+        <div class="auth-mobile-brand">
+          <div class="auth-brand-icon small">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          </div>
+          <span>Campus Feedback</span>
+        </div>
+
+        <h2>Create your account</h2>
+        <p class="auth-form-sub">Student accounts only — staff are invited by admin</p>
+
+        <form id="signup-form" novalidate>
+          <div class="form-group">
+            <label class="form-label" for="name">Full name</label>
+            <input type="text" id="name" class="form-control" placeholder="e.g. Ahmed Hassan" required autocomplete="name" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="email">Email address</label>
+            <input type="email" id="email" class="form-control" placeholder="name@university.edu" required autocomplete="email" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="password">Password</label>
+            <div class="password-wrap">
+              <input type="password" id="password" class="form-control" placeholder="At least 6 characters" required autocomplete="new-password" minlength="6" />
+              <button type="button" class="password-toggle" id="toggle-pw" aria-label="Show password">Show</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="password2">Confirm password</label>
+            <input type="password" id="password2" class="form-control" placeholder="Repeat password" required autocomplete="new-password" />
+          </div>
+          <div id="signup-error" class="form-error auth-error" style="display:none"></div>
+          <button type="submit" id="signup-btn" class="btn btn-primary btn-block btn-lg btn-shine">
+            <span class="btn-text">Create account</span>
+          </button>
+        </form>
+
+        <p class="auth-switch">
+          Already have an account?
+          <a href="login.html">Sign in</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/pages/signup.js"></script>
+</body>
+</html>
