@@ -104,13 +104,17 @@ async function submitResponse(surveyId, studentId, answers) {
     let finalRating = null;
 
     if (question.question_type === 'text') {
-      const textVal = submitted.answer_text !== undefined ? String(submitted.answer_text).trim() : '';
+      const textVal = submitted.answer_text !== undefined
+        ? String(submitted.answer_text).trim()
+        : (submitted.value !== undefined ? String(submitted.value).trim() : '');
       if (question.is_required && !textVal) {
         throw new ValidationError(`Question "${question.question_text}" requires a non-empty text response.`);
       }
       finalAnswerText = textVal || null;
     } else if (question.question_type === 'multiple_choice' || question.question_type === 'single_choice') {
-      const choiceVal = submitted.answer_text !== undefined ? String(submitted.answer_text).trim() : '';
+      const choiceVal = submitted.answer_text !== undefined
+        ? String(submitted.answer_text).trim()
+        : (submitted.value !== undefined ? String(submitted.value).trim() : '');
       if (!choiceVal) {
         if (question.is_required) {
           throw new ValidationError(`Question "${question.question_text}" requires an option to be selected.`);
@@ -124,7 +128,11 @@ async function submitResponse(surveyId, studentId, answers) {
         finalAnswerText = choiceVal;
       }
     } else if (question.question_type === 'rating') {
-      const rawRating = submitted.rating !== undefined ? submitted.rating : (submitted.rating_value !== undefined ? submitted.rating_value : submitted.answer_text);
+      const rawRating = submitted.rating !== undefined
+        ? submitted.rating
+        : (submitted.rating_value !== undefined
+          ? submitted.rating_value
+          : (submitted.value !== undefined ? submitted.value : submitted.answer_text));
       const ratingNum = Number(rawRating);
 
       if (!Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {

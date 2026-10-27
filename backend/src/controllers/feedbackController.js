@@ -35,7 +35,26 @@ async function getAllFeedback(req, res, next) {
   }
 }
 
+/**
+ * Retrieves feedback entries submitted by currently authenticated student.
+ * Student only.
+ */
+async function getMyFeedback(req, res, next) {
+  try {
+    const studentId = req.user.id;
+    const feedbackList = await feedbackService.getFeedbackByStudent(studentId);
+    res.status(200).json({
+      success: true,
+      count: feedbackList.length,
+      data: { feedback: feedbackList },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createFeedback,
   getAllFeedback,
+  getMyFeedback,
 };

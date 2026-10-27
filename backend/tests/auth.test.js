@@ -189,4 +189,76 @@ describe('Authentication Endpoints', () => {
       expect(res.body.semantics).toBeDefined();
     });
   });
+
+  describe('POST /api/auth/register', () => {
+    it('should successfully register a new student account', async () => {
+      // 1. Email check mock: no existing user with this email
+      vi.spyOn(db, 'query')
+        .mockResolvedValueOnce({ rows: [] }) // check email
+        .mockResolvedValueOnce({ rows: [] }) // check username collision
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: 50,
+              full_name: 'Sara Student',
+              email: 'sara@university.edu',
+              username: 'sara',
+              role: 'student',
+              created_at: new Date().toISOString(),
+            },
+          ],
+        }); // insert into users
+
+      const res = await request(app).post('/api/auth/register').send({
+        name: 'Sara Student',
+        email: 'sara@university.edu',
+        password: 'Password123!',
+      });
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.token).toBeDefined();
+      expect(res.body.data.user).toBeDefined();
+      expect(res.body.data.user.name).toBe('Sara Student');
+      expect(res.body.data.user.email).toBe('sara@university.edu');
+      expect(res.body.data.user.role).toBe('student');
+    });
+
+    it('should reject registration if email is already registered (409 Conflict)', async () => {
+      vi.spyOn(db, 'query').mockResolvedValueOnce({
+        rows: [{ id: 1, email: 'existing@university.edu' }],
+      });
+
+      const res = await request(app).post('/api/auth/register').send({
+        name: 'Existing User',
+        email: 'existing@university.edu',
+        password: 'Password123!',
+      });
+
+      expect(res.status).toBe(409);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.message).toContain('already exists');
+    });
+
+    it('should reject registration if required fields are missing (400)', async () => {
+      const res = await request(app).post('/api/auth/register').send({
+        email: 'invalid@university.edu',
+        // missing name and password
+      });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('should reject registration if password is too short (400)', async () => {
+      const res = await request(app).post('/api/auth/register').send({
+        name: 'Short Pw',
+        email: 'shortpw@university.edu',
+        password: '123',
+      });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.message).toContain('at least 6 characters');
+    });
+  });
 });

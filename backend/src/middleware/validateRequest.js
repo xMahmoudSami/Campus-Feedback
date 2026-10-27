@@ -16,6 +16,35 @@ function validateIntegerParam(paramName = 'id') {
 }
 
 /**
+ * Validates registration request body.
+ */
+function validateRegisterBody(req, res, next) {
+  const { name, fullName, email, password } = req.body || {};
+  const userName = (fullName || name || '').trim();
+
+  if (!userName) {
+    return next(new ValidationError('Full name is required.'));
+  }
+  if (userName.length > 100) {
+    return next(new ValidationError('Full name must not exceed 100 characters.'));
+  }
+
+  if (!email || typeof email !== 'string' || !email.trim()) {
+    return next(new ValidationError('Email address is required.'));
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email.trim())) {
+    return next(new ValidationError('Invalid email address format.'));
+  }
+
+  if (!password || typeof password !== 'string' || password.length < 6) {
+    return next(new ValidationError('Password must be at least 6 characters long.'));
+  }
+
+  next();
+}
+
+/**
  * Validates login request body.
  */
 function validateLoginBody(req, res, next) {
@@ -61,6 +90,17 @@ function validateSurveyCreate(req, res, next) {
 
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
+      // Normalize client field variations (text vs question_text, type vs question_type)
+      if (!q.question_text && q.text) {
+        q.question_text = q.text;
+      }
+      if (!q.question_type && q.type) {
+        q.question_type = q.type;
+      }
+      if (q.is_required === undefined && q.required !== undefined) {
+        q.is_required = q.required;
+      }
+
       if (!q.question_text || typeof q.question_text !== 'string' || !q.question_text.trim()) {
         return next(new ValidationError(`Question at index ${i} requires a non-empty 'question_text'.`));
       }
@@ -116,9 +156,11 @@ function validateResponseSubmission(req, res, next) {
 
   for (let i = 0; i < answers.length; i++) {
     const a = answers[i];
-    if (!a.question_id || !Number.isInteger(Number(a.question_id))) {
+    const rawId = a.question_id || a.questionId;
+    if (!rawId || !Number.isInteger(Number(rawId))) {
       return next(new ValidationError(`Answer at index ${i} must contain a valid integer 'question_id'.`));
     }
+    a.question_id = Number(rawId);
   }
 
   next();
@@ -129,14 +171,15 @@ function validateResponseSubmission(req, res, next) {
  * Schema columns: student_id, survey_id (optional), message, created_at.
  */
 function validateFeedbackCreate(req, res, next) {
-  const { message, survey_id } = req.body || {};
+  const { message, survey_id, surveyId } = req.body || {};
+  const actualSurveyId = survey_id !== undefined ? survey_id : surveyId;
 
   if (!message || typeof message !== 'string' || !message.trim()) {
     return next(new ValidationError("Field 'message' is required and must be a non-empty string."));
   }
 
-  if (survey_id !== undefined && survey_id !== null) {
-    const num = Number(survey_id);
+  if (actualSurveyId !== undefined && actualSurveyId !== null) {
+    const num = Number(actualSurveyId);
     if (!Number.isInteger(num) || num <= 0) {
       return next(new ValidationError("Field 'survey_id' must be a valid positive integer if provided."));
     }
@@ -148,6 +191,7 @@ function validateFeedbackCreate(req, res, next) {
 
 module.exports = {
   validateIntegerParam,
+  validateRegisterBody,
   validateLoginBody,
   validateSurveyCreate,
   validateSurveyStatus,

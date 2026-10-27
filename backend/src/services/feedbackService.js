@@ -56,7 +56,36 @@ async function getAllFeedback() {
   return result.rows;
 }
 
+/**
+ * Retrieves feedback entries submitted by a specific student.
+ * Student only.
+ * @param {number} studentId
+ */
+async function getFeedbackByStudent(studentId) {
+  const queryText = `
+    SELECT 
+      f.id,
+      f.student_id,
+      f.survey_id,
+      f.message,
+      f.created_at,
+      u.username AS student_username,
+      u.email AS student_email,
+      u.full_name AS student_full_name,
+      s.title AS survey_title
+    FROM feedback f
+    LEFT JOIN users u ON f.student_id = u.id
+    LEFT JOIN surveys s ON f.survey_id = s.id
+    WHERE f.student_id = $1
+    ORDER BY f.created_at DESC;
+  `;
+
+  const result = await db.query(queryText, [studentId]);
+  return result.rows;
+}
+
 module.exports = {
   createFeedback,
   getAllFeedback,
+  getFeedbackByStudent,
 };

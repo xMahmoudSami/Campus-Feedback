@@ -4,8 +4,13 @@
  * Set API_BASE_URL to point at your Express backend.
  */
 
-const USE_MOCK = true;
-const API_BASE_URL = 'http://localhost:5000/api';
+const USE_MOCK = (typeof window !== 'undefined' && window.USE_MOCK !== undefined)
+  ? Boolean(window.USE_MOCK)
+  : (typeof localStorage !== 'undefined' && localStorage.getItem('USE_MOCK') === 'true');
+
+const API_BASE_URL = (typeof window !== 'undefined' && window.location && (window.location.port === '8080' || window.location.port === '80'))
+  ? '/api'
+  : 'http://localhost:5000/api';
 
 /* ─── Guessed response shapes (commented for reference) ───
  *
@@ -116,8 +121,13 @@ async function apiFetch(path, options = {}) {
     let msg = `Request failed (${res.status})`;
     try {
       const body = await res.json();
-      if (body.message) msg = body.message;
-      if (body.error) msg = body.error;
+      if (typeof body.error === 'string') {
+        msg = body.error;
+      } else if (body.error && body.error.message) {
+        msg = body.error.message;
+      } else if (body.message) {
+        msg = body.message;
+      }
     } catch (_) { /* ignore */ }
     const err = new Error(msg);
     err.status = res.status;
@@ -292,7 +302,6 @@ async function login(email, password) {
     await delay();
     const key = (email || '').toLowerCase().trim();
     let u = MOCK.users[key];
-    // also allow login by username (matches backend seed: admin / student)
     if (!u) {
       u = Object.values(MOCK.users).find(
         (x) => (x.username || '').toLowerCase() === key
@@ -307,10 +316,15 @@ async function login(email, password) {
     const token = 'mock-jwt-' + user.role + '-' + Date.now();
     return { token, user };
   }
-  return apiFetch('/auth/login', {
+  const res = await apiFetch('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ identifier: email, password }),
   });
+  const data = res.data || res;
+  if (data.user && !data.user.name && data.user.full_name) {
+    data.user.name = data.user.full_name;
+  }
+  return data;
 }
 
 async function register({ name, email, password, role }) {
@@ -339,10 +353,15 @@ async function register({ name, email, password, role }) {
     const token = 'mock-jwt-' + user.role + '-' + Date.now();
     return { token, user };
   }
-  return apiFetch('/auth/register', {
+  const res = await apiFetch('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ name, email, password, role: role || 'student' }),
+    body: JSON.stringify({ name, fullName: name, email, password, role: role || 'student' }),
   });
+  const data = res.data || res;
+  if (data.user && !data.user.name && data.user.full_name) {
+    data.user.name = data.user.full_name;
+  }
+  return data;
 }
 
 async function getMe() {
@@ -350,7 +369,12 @@ async function getMe() {
     await delay(100);
     return mockAuth();
   }
-  return apiFetch('/auth/me');
+  const res = await apiFetch('/auth/me');
+  const user = res.data?.user || res.data || res;
+  if (user && !user.name && user.full_name) {
+    user.name = user.full_name;
+  }
+  return user;
 }
 
 async function logout() {
@@ -393,7 +417,50 @@ async function getAdminDashboard() {
       },
     };
   }
-  return apiFetch('/dashboard/admin');
+  const res = await apiFetch('/dashboard/admin');
+  const raw = res.data || res;
+  const totalSurveys = raw.overview?.surveys?.total ?? 0;
+  const totalStudents = raw.overview?.students_count ?? 0;
+  const totalResponses = raw.overview?.responses_count ?? 0;
+  let avgCompletionRate = 0;
+  if (raw.surveys_metrics && raw.surveys_metrics.length > 0) {
+    const sum = raw.surveys_metrics.reduce((acc, s) => acc + (s.completion_rate_percent || 0), 0);
+    avgCompletionRate = Math.round(sum / raw.surveys_metrics.length);
+  }
+  return {
+    stats: {
+      totalSurveys,
+      totalStudents,
+      totalResponses,
+      completionRate: avgCompletionRate,
+      surveysChange: 0,
+      studentsChange: 0,
+      responsesChange: 0,
+      completionChange: 0,
+    },
+    recentSurveys: (raw.surveys_metrics || []).slice(0, 5).map((s) => ({
+      id: s.id,
+      title: s.title,
+      status: s.status,
+      responseCount: s.completed_responses ?? s.response_count ?? 0,
+      completionPercent: Math.round(s.completion_rate_percent || 0),
+    })),
+    latestFeedback: (raw.recent_activity?.recent_feedback || []).slice(0, 5).map((f) => ({
+      id: f.feedback_id || f.id,
+      studentName: f.student_full_name || f.student_username || f.student_email || 'Student',
+      studentEmail: f.student_email || '',
+      surveyTitle: f.survey_title || 'General',
+      rating: 5,
+      comment: f.message,
+      date: f.created_at ? new Date(f.created_at).toLocaleDateString() : '',
+    })),
+    activity: {
+      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      views: [0, 0, 0, 0, 0, 0, raw.overview?.views_count || 0],
+      responses: [0, 0, 0, 0, 0, 0, totalResponses],
+    },
+    ...raw,
+  };
 }
 
 async function getStudentDashboard() {
@@ -419,7 +486,35 @@ async function getStudentDashboard() {
       recentResponses: MOCK.studentResponses,
     };
   }
-  return apiFetch('/dashboard/student');
+  const res = await apiFetch('/dashboard/student');
+  const raw = res.data || res;
+  const allSurveys = raw.surveys || [];
+  const available = allSurveys.filter((s) => !s.is_completed).map((s) => ({
+    id: s.id,
+    title: s.title,
+    description: s.description || '',
+    questionCount: s.question_count || 0,
+    dueDate: null,
+    status: 'Available',
+  }));
+  const completed = allSurveys.filter((s) => s.is_completed).map((s) => ({
+    id: s.id,
+    surveyId: s.id,
+    surveyTitle: s.title,
+    completedOn: s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : 'Completed',
+    status: 'Completed',
+  }));
+  return {
+    stats: {
+      availableSurveys: raw.summary?.pending_surveys_count ?? available.length,
+      completedSurveys: raw.summary?.completed_surveys_count ?? completed.length,
+      totalResponses: raw.summary?.completed_surveys_count ?? completed.length,
+      yourFeedback: raw.summary?.feedback_submitted_count ?? 0,
+    },
+    availableSurveys: available,
+    recentResponses: completed,
+    ...raw,
+  };
 }
 
 // ─── Surveys ──────────────────────────────────────────────────
@@ -430,7 +525,14 @@ async function getSurveys() {
     mockAuth();
     return MOCK.surveys.map(({ questions, ...rest }) => rest);
   }
-  return apiFetch('/surveys');
+  const res = await apiFetch('/surveys');
+  const list = res.data?.surveys || res.surveys || (Array.isArray(res) ? res : []);
+  return list.map((s) => ({
+    ...s,
+    questionCount: s.question_count ?? s.questionCount ?? 0,
+    responseCount: s.response_count ?? s.responseCount ?? 0,
+    updatedAt: s.published_at || s.created_at,
+  }));
 }
 
 async function getSurvey(id) {
@@ -445,7 +547,20 @@ async function getSurvey(id) {
     }
     return JSON.parse(JSON.stringify(s));
   }
-  return apiFetch(`/surveys/${id}`);
+  const res = await apiFetch(`/surveys/${id}`);
+  const survey = res.data?.survey || res.survey || res;
+  return {
+    ...survey,
+    questions: (survey.questions || []).map((q) => ({
+      ...q,
+      text: q.question_text || q.text,
+      type: q.question_type || q.type,
+      required: q.is_required !== undefined ? q.is_required : (q.required ?? true),
+      options: Array.isArray(q.options)
+        ? q.options
+        : (typeof q.options === 'string' ? JSON.parse(q.options || '[]') : []),
+    })),
+  };
 }
 
 async function createSurvey(data) {
@@ -475,7 +590,20 @@ async function createSurvey(data) {
     MOCK.surveys.unshift(survey);
     return survey;
   }
-  return apiFetch('/surveys', { method: 'POST', body: JSON.stringify(data) });
+  const payload = {
+    title: data.title,
+    description: data.description,
+    status: data.status,
+    questions: (data.questions || []).map((q, idx) => ({
+      question_text: q.text || q.question_text,
+      question_type: q.type || q.question_type,
+      options: q.options,
+      position: idx + 1,
+      is_required: q.required !== undefined ? q.required : (q.is_required ?? true),
+    })),
+  };
+  const res = await apiFetch('/surveys', { method: 'POST', body: JSON.stringify(payload) });
+  return res.data?.survey || res.survey || res;
 }
 
 async function updateSurvey(id, data) {
@@ -508,7 +636,12 @@ async function updateSurvey(id, data) {
     MOCK.surveys[idx] = updated;
     return updated;
   }
-  return apiFetch(`/surveys/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+  const payload = {
+    title: data.title,
+    description: data.description,
+  };
+  const res = await apiFetch(`/surveys/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+  return res.data?.survey || res.survey || res;
 }
 
 async function updateSurveyStatus(id, status) {
@@ -525,10 +658,11 @@ async function updateSurveyStatus(id, status) {
     s.updatedAt = new Date().toISOString();
     return s;
   }
-  return apiFetch(`/surveys/${id}/status`, {
+  const res = await apiFetch(`/surveys/${id}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
   });
+  return res.data?.survey || res.survey || res;
 }
 
 async function deleteSurvey(id) {
@@ -567,10 +701,25 @@ async function submitResponse(surveyId, answers) {
     MOCK.studentResponses.unshift(entry);
     return { id, surveyId: Number(surveyId), submittedAt: entry.submittedAt };
   }
-  return apiFetch(`/surveys/${surveyId}/responses`, {
-    method: 'POST',
-    body: JSON.stringify({ answers }),
+  const normalizedAnswers = (answers || []).map((a) => {
+    const qId = a.question_id || a.questionId;
+    if (typeof a.value === 'number') {
+      return { question_id: Number(qId), rating: a.value };
+    }
+    if (typeof a.value === 'string') {
+      return { question_id: Number(qId), answer_text: a.value };
+    }
+    return {
+      question_id: Number(qId),
+      answer_text: a.answer_text,
+      rating: a.rating,
+    };
   });
+  const res = await apiFetch(`/surveys/${surveyId}/responses`, {
+    method: 'POST',
+    body: JSON.stringify({ answers: normalizedAnswers }),
+  });
+  return res.data || res;
 }
 
 async function getSurveyResponses(surveyId) {
@@ -584,7 +733,61 @@ async function getSurveyResponses(surveyId) {
       }
     );
   }
-  return apiFetch(`/surveys/${surveyId}/responses`);
+  const res = await apiFetch(`/surveys/${surveyId}/responses`);
+  const raw = res.data || res;
+  const list = raw.responses || [];
+
+  const qStatsMap = {};
+  list.forEach((r) => {
+    (r.answers || []).forEach((a) => {
+      const qId = a.question_id;
+      if (!qStatsMap[qId]) {
+        qStatsMap[qId] = {
+          questionId: qId,
+          questionText: a.question_text || `Question ${a.position || qId}`,
+          type: a.question_type,
+          ratings: [],
+          counts: {},
+        };
+      }
+      if (a.question_type === 'rating' && a.rating) {
+        qStatsMap[qId].ratings.push(a.rating);
+      } else if (a.question_type === 'multiple_choice' && a.answer_text) {
+        qStatsMap[qId].counts[a.answer_text] = (qStatsMap[qId].counts[a.answer_text] || 0) + 1;
+      }
+    });
+  });
+
+  const statistics = Object.values(qStatsMap).map((s) => {
+    if (s.type === 'rating') {
+      const avg = s.ratings.length ? (s.ratings.reduce((x, y) => x + y, 0) / s.ratings.length).toFixed(1) : 0;
+      const dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      s.ratings.forEach((val) => { dist[val] = (dist[val] || 0) + 1; });
+      return { questionId: s.questionId, questionText: s.questionText, type: s.type, stats: { average: Number(avg), distribution: dist } };
+    }
+    if (s.type === 'multiple_choice') {
+      return { questionId: s.questionId, questionText: s.questionText, type: s.type, stats: { counts: s.counts } };
+    }
+    return { questionId: s.questionId, questionText: s.questionText, type: s.type };
+  });
+
+  const normalizedResponses = list.map((r) => ({
+    ...r,
+    studentName: r.student_full_name || r.student_username || 'Student',
+    studentEmail: r.student_email || '',
+    submittedAt: r.submitted_at || r.completed_at,
+    answers: (r.answers || []).map((a) => ({
+      ...a,
+      questionId: a.question_id,
+      value: a.answer_text !== null && a.answer_text !== undefined ? a.answer_text : a.rating,
+    })),
+  }));
+
+  return {
+    ...raw,
+    statistics,
+    responses: normalizedResponses,
+  };
 }
 
 async function getMyResponses() {
@@ -593,7 +796,18 @@ async function getMyResponses() {
     mockAuth();
     return MOCK.studentResponses;
   }
-  return apiFetch('/responses/mine');
+  const res = await apiFetch('/responses/mine');
+  const list = res.data?.responses || res.responses || (Array.isArray(res) ? res : []);
+  return list.map((r) => ({
+    ...r,
+    surveyId: r.survey_id || r.surveyId,
+    surveyTitle: r.survey_title || r.surveyTitle,
+    submittedAt: r.completed_at || r.submitted_at || r.submittedAt,
+    completedOn: (r.completed_at || r.submitted_at)
+      ? new Date(r.completed_at || r.submitted_at).toLocaleDateString()
+      : 'Completed',
+    status: 'Completed',
+  }));
 }
 
 // ─── Feedback ─────────────────────────────────────────────────
@@ -617,7 +831,14 @@ async function submitFeedback(data) {
     MOCK.feedback.unshift(entry);
     return entry;
   }
-  return apiFetch('/feedback', { method: 'POST', body: JSON.stringify(data) });
+  const res = await apiFetch('/feedback', {
+    method: 'POST',
+    body: JSON.stringify({
+      message: data.message,
+      survey_id: data.survey_id || data.surveyId,
+    }),
+  });
+  return res.data?.feedback || res.feedback || res;
 }
 
 async function getFeedback() {
@@ -626,7 +847,21 @@ async function getFeedback() {
     mockAuth();
     return MOCK.feedback;
   }
-  return apiFetch('/feedback');
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  let endpoint = '/feedback';
+  if (user.role === 'student') {
+    endpoint = '/feedback/mine';
+  }
+  const res = await apiFetch(endpoint);
+  const list = res.data?.feedback || res.feedback || (Array.isArray(res) ? res : []);
+  return list.map((f) => ({
+    ...f,
+    studentName: f.student_full_name || f.student_username || f.studentName || 'Student',
+    studentEmail: f.student_email || f.studentEmail || '',
+    surveyTitle: f.survey_title || f.surveyTitle || 'General',
+    comment: f.message || f.comment,
+    date: f.created_at ? new Date(f.created_at).toLocaleDateString() : '',
+  }));
 }
 
 // ─── Health ───────────────────────────────────────────────────

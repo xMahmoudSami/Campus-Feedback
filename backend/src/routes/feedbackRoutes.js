@@ -13,6 +13,7 @@ const router = express.Router();
 router.use(authenticateToken);
 
 router.post('/', requireStudent, validateFeedbackCreate, feedbackController.createFeedback);
+router.get('/mine', requireStudent, feedbackController.getMyFeedback);
 router.get('/', requireAdmin, feedbackController.getAllFeedback);
 
 module.exports = router;

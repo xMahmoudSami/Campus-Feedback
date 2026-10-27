@@ -1,6 +1,30 @@
 const authService = require('../services/authService');
 
 /**
+ * Handles user registration.
+ * Expects { name / fullName, email, password, username?, role? }.
+ */
+async function register(req, res, next) {
+  try {
+    const { name, fullName, email, password, username, role } = req.body;
+    const result = await authService.register({
+      fullName: fullName || name,
+      email,
+      password,
+      username,
+      role,
+    });
+    res.status(201).json({
+      success: true,
+      message: 'Account created successfully.',
+      data: result,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * Handles user login.
  * Expects { username or email or identifier, password }.
  */
@@ -47,6 +71,7 @@ function logout(req, res) {
 }
 
 module.exports = {
+  register,
   login,
   getMe,
   logout,
