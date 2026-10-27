@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thank You – Student Feedback System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <div class="confirmation-page">
+    <div class="confirmation-card">
+      <div class="confirmation-icon">OK</div>
+      <h1>Got it — thanks.</h1>
+      <p>Your answers were saved. Faculty review these throughout the term, not only at the end.</p>
+      <div class="d-flex gap-2" style="justify-content:center">
+        <a href="dashboard.html" class="btn btn-primary">Back to Dashboard</a>
+        <a href="surveys.html" class="btn btn-outline">More Surveys</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script>
+    // Guard – must be logged in as student
+    if (!Auth.requireAuth('student')) { /* redirect handled */ }
+  </script>
+</body>
+</html>

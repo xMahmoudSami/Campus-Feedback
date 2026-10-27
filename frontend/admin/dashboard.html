@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard – Student Feedback System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">SF</div>
+        <div class="sidebar-title">Student Feedback<br />System</div>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item active" data-page="dashboard" href="dashboard.html">
+          Dashboard
+        </a>
+        <a class="nav-item" data-page="surveys" href="surveys.html">
+          Surveys
+        </a>
+        <a class="nav-item" data-page="feedback" href="feedback.html">
+          Feedback
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" data-user-initials>A</div>
+          <div class="user-details">
+            <div class="user-name" data-user-name>Admin</div>
+            <div class="user-email" data-user-email>admin@example.com</div>
+          </div>
+        </div>
+        <button class="btn-logout" data-logout>Logout</button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle menu-toggle-bars" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+        </div>
+        <div class="topbar-right">
+          <div class="topbar-user">
+            <span data-user-name>Admin</span>
+            <span class="text-muted text-xs" data-user-role>Administrator</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="page-body">
+        <div class="page-header">
+          <h1>Welcome back, <span data-user-name>Admin</span></h1>
+          <p>Here's what happened across surveys this week.</p>
+        </div>
+
+        <!-- Stat cards -->
+        <div class="stat-cards" id="stats-cards"></div>
+
+        <!-- Activity + Recent Surveys -->
+        <div class="grid-2-1">
+          <div class="card">
+            <div class="card-header">
+              <h3>Survey Activity</h3>
+              <span class="text-xs text-muted">Last 7 days</span>
+            </div>
+            <div class="card-body" id="activity-chart"></div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h3>Recent Surveys</h3>
+              <a href="surveys.html" class="link-view-all">View all</a>
+            </div>
+            <div id="recent-surveys"></div>
+          </div>
+        </div>
+
+        <!-- Latest Feedback -->
+        <div class="card mb-3">
+          <div class="card-header">
+            <h3>Latest Student Feedback</h3>
+            <a href="feedback.html" class="link-view-all">View all</a>
+          </div>
+          <div class="card-body" id="latest-feedback"></div>
+        </div>
+
+        <!-- Quick Actions + System Status -->
+        <div class="grid-1-1">
+          <div class="card">
+            <div class="card-header"><h3>Quick Actions</h3></div>
+            <div class="card-body">
+              <a class="quick-action" href="create-survey.html">
+                <div class="quick-action-icon blue"></div>
+                <div>
+                  <div class="fw-600">Create New Survey</div>
+                  <div class="text-xs text-muted">Design and publish a new survey</div>
+                </div>
+              </a>
+              <a class="quick-action" href="surveys.html">
+                <div class="quick-action-icon green"></div>
+                <div>
+                  <div class="fw-600">Manage Surveys</div>
+                  <div class="text-xs text-muted">View, edit, publish or close surveys</div>
+                </div>
+              </a>
+              <a class="quick-action" href="feedback.html">
+                <div class="quick-action-icon purple"></div>
+                <div>
+                  <div class="fw-600">View Feedback</div>
+                  <div class="text-xs text-muted">See all student feedback</div>
+                </div>
+              </a>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>System Status</h3></div>
+            <div class="card-body">
+              <div class="system-status-item">
+                <span><span class="status-dot green"></span> Database</span>
+                <span class="text-sm text-muted">Connected</span>
+              </div>
+              <div class="system-status-item">
+                <span><span class="status-dot green"></span> API Server</span>
+                <span class="text-sm text-muted">Running</span>
+              </div>
+              <div class="system-status-item">
+                <span><span class="status-dot gray"></span> Last Backup</span>
+                <span class="text-sm text-muted">2 hours ago</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="../js/pages/admin-dashboard.js"></script>
+</body>
+</html>

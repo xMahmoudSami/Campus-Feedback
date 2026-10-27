@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Dashboard – Student Feedback System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">SF</div>
+        <div class="sidebar-title">Student Feedback<br />System</div>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item active" data-page="dashboard" href="dashboard.html">
+          Dashboard
+        </a>
+        <a class="nav-item" data-page="surveys" href="surveys.html">
+          Surveys
+        </a>
+        <a class="nav-item" data-page="feedback" href="feedback.html">
+          Feedback
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" data-user-initials>S</div>
+          <div class="user-details">
+            <div class="user-name" data-user-name>Student</div>
+            <div class="user-email" data-user-email>student@example.com</div>
+          </div>
+        </div>
+        <button class="btn-logout" data-logout>Logout</button>
+      </div>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle menu-toggle-bars" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+        </div>
+        <div class="topbar-right">
+          <div class="topbar-user">
+            <span data-user-name>Student</span>
+            <span class="text-muted text-xs" data-user-role>Student</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="page-body">
+        <!-- Welcome banner -->
+        <div class="welcome-banner">
+          <div>
+            <h2 id="greeting">Hello, Student!</h2>
+            <p>Got 5 minutes? Open surveys are waiting — instructors actually read these.</p>
+          </div>
+          <div class="welcome-banner-art">
+            <svg width="100" height="80" viewBox="0 0 100 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="10" y="25" width="50" height="40" rx="4" fill="#c7d2fe"/>
+              <rect x="16" y="32" width="28" height="4" rx="2" fill="#818cf8"/>
+              <rect x="16" y="40" width="38" height="3" rx="1.5" fill="#a5b4fc"/>
+              <rect x="16" y="47" width="22" height="3" rx="1.5" fill="#a5b4fc"/>
+              <circle cx="72" cy="28" r="16" fill="#4f46e5"/>
+              <path d="M66 28l4 4 8-8" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M55 12 L70 5 L85 12 L70 20 Z" fill="#818cf8" opacity="0.7"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Stat cards -->
+        <div class="stat-cards" id="stats-cards"></div>
+
+        <!-- Available Surveys -->
+        <div class="card mb-3">
+          <div class="card-header">
+            <h3>Available Surveys</h3>
+            <a href="surveys.html" class="link-view-all">View all</a>
+          </div>
+          <div id="available-surveys"></div>
+        </div>
+
+        <!-- Recent Responses -->
+        <div class="card mb-3">
+          <div class="card-header">
+            <h3>Your Recent Responses</h3>
+            <a href="feedback.html" class="link-view-all">View all</a>
+          </div>
+          <div class="card-body" id="recent-responses"></div>
+        </div>
+
+        <!-- Quick Feedback CTA -->
+        <div class="card">
+          <div class="card-body">
+            <div class="d-flex align-center gap-2 mb-2">
+              
+              <div>
+                <div class="fw-600">Something on your mind?</div>
+                <div class="text-sm text-muted">Library hours, lab equipment, cafeteria — drop a note. We route it to the right people.</div>
+              </div>
+            </div>
+            <a href="feedback.html" class="btn btn-primary">Write feedback</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="../js/pages/student-dashboard.js"></script>
+</body>
+</html>

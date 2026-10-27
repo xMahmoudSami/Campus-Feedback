@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Feedback – Student</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">SF</div>
+        <div class="sidebar-title">Student Feedback<br />System</div>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" data-page="dashboard" href="dashboard.html">
+          Dashboard
+        </a>
+        <a class="nav-item" data-page="surveys" href="surveys.html">
+          Surveys
+        </a>
+        <a class="nav-item active" data-page="feedback" href="feedback.html">
+          Feedback
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" data-user-initials>S</div>
+          <div class="user-details">
+            <div class="user-name" data-user-name>Student</div>
+            <div class="user-email" data-user-email>student@example.com</div>
+          </div>
+        </div>
+        <button class="btn-logout" data-logout>Logout</button>
+      </div>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle menu-toggle-bars" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+        </div>
+        <div class="topbar-right">
+          <div class="topbar-user"><span data-user-name>Student</span></div>
+        </div>
+      </header>
+
+      <div class="page-body">
+        <div class="page-header">
+          <h1>Feedback</h1>
+          <p>Share your thoughts and view your submissions</p>
+        </div>
+
+        <!-- Submit form -->
+        <div class="card mb-3">
+          <div class="card-header"><h3>Send Feedback</h3></div>
+          <div class="card-body">
+            <form id="feedback-form">
+              <div class="form-group">
+                <label class="form-label" for="feedback-message">Your Message <span class="required">*</span></label>
+                <textarea id="feedback-message" class="form-control" rows="4" placeholder="Share your comments, suggestions, or concerns..."></textarea>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Rating (optional)</label>
+                <input type="hidden" id="feedback-rating" value="" />
+                <div class="rating-group">
+                  <button type="button" class="rating-btn" data-value="1">1</button>
+                  <button type="button" class="rating-btn" data-value="2">2</button>
+                  <button type="button" class="rating-btn" data-value="3">3</button>
+                  <button type="button" class="rating-btn" data-value="4">4</button>
+                  <button type="button" class="rating-btn" data-value="5">5</button>
+                </div>
+              </div>
+              <button type="submit" id="submit-feedback-btn" class="btn btn-primary">Submit Feedback</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><h3>My Feedback</h3></div>
+            <div id="my-feedback"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>My Survey Responses</h3></div>
+            <div class="card-body" id="my-responses"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="../js/pages/student-feedback.js"></script>
+</body>
+</html>

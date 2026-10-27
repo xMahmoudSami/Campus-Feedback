@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Survey – Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">SF</div>
+        <div class="sidebar-title">Student Feedback<br />System</div>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" data-page="dashboard" href="dashboard.html">
+          Dashboard
+        </a>
+        <a class="nav-item active" data-page="surveys" href="surveys.html">
+          Surveys
+        </a>
+        <a class="nav-item" data-page="feedback" href="feedback.html">
+          Feedback
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" data-user-initials>A</div>
+          <div class="user-details">
+            <div class="user-name" data-user-name>Admin</div>
+            <div class="user-email" data-user-email>admin@example.com</div>
+          </div>
+        </div>
+        <button class="btn-logout" data-logout>Logout</button>
+      </div>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle menu-toggle-bars" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+        </div>
+        <div class="topbar-right">
+          <div class="topbar-user"><span data-user-name>Admin</span></div>
+        </div>
+      </header>
+
+      <div class="page-body">
+        <div class="page-header">
+          <h1 id="page-title">Create Survey</h1>
+          <p>Design your survey with text, multiple-choice, or rating questions</p>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label" for="survey-title">Title <span class="required">*</span></label>
+              <input type="text" id="survey-title" class="form-control" placeholder="e.g. Course Evaluation – Spring 2025" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="survey-description">Description</label>
+              <textarea id="survey-description" class="form-control" rows="2" placeholder="Brief description of the survey purpose"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="survey-due">Due Date</label>
+              <input type="date" id="survey-due" class="form-control" style="max-width:220px" />
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex justify-between align-center mb-2">
+          <h3 style="font-size:1.05rem;font-weight:600">Questions</h3>
+          <button type="button" id="add-question-btn" class="btn btn-outline">+ Add Question</button>
+        </div>
+
+        <div id="questions-list"></div>
+
+        <div class="d-flex gap-2 mt-3">
+          <button type="button" id="save-draft-btn" class="btn btn-secondary">Save Draft</button>
+          <button type="button" id="publish-btn" class="btn btn-primary">Publish</button>
+          <a href="surveys.html" class="btn btn-outline">Cancel</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="../js/pages/admin-create-survey.js"></script>
+</body>
+</html>
