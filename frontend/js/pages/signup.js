@@ -1,7 +1,7 @@
 /**
  * Sign up page – student registration
  */
-document.addEventListener('DOMContentLoaded', () => {
+function initSignup() {
   Auth.redirectIfLoggedIn();
 
   const form = document.getElementById('signup-form');
@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const submitBtn = document.getElementById('signup-btn');
   const errorEl = document.getElementById('signup-error');
   const togglePw = document.getElementById('toggle-pw');
+  if (!form) return;
 
   if (togglePw) {
     togglePw.addEventListener('click', () => {
@@ -66,4 +67,10 @@ document.addEventListener('DOMContentLoaded', () => {
     errorEl.classList.add('shake');
     setTimeout(() => errorEl.classList.remove('shake'), 500);
   }
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initSignup);
+} else {
+  initSignup();
+}

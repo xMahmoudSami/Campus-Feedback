@@ -8,7 +8,9 @@
     "dev": "nodemon src/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed": "node src/scripts/seed.js"
+    "seed": "node src/scripts/seed.js",
+    "seed:export": "node src/scripts/exportSeed.js",
+    "seed:import": "node src/scripts/importSeed.js"
   },
   "keywords": [
     "express",

@@ -1,0 +1,169 @@
+{
+  "version": "2.0",
+  "project": "Campus Feedback",
+  "exported_at": "2026-10-28T21:29:19.750Z",
+  "description": "Approved development seed dataset for Campus Feedback System",
+  "surveys": [
+    {
+      "uuid": "46124920-9abc-461b-a765-c97a41f2f3ff",
+      "source_id": 1,
+      "title": "Course Evaluation 2026",
+      "description": "Gathering feedback on the course we covered in 2026",
+      "status": "published",
+      "due_date": "2026-10-28T00:00:00.000Z",
+      "created_at": "2026-10-28T17:50:27.577Z",
+      "published_at": "2026-10-28T17:50:27.577Z",
+      "closed_at": null,
+      "creator_role": "admin"
+    },
+    {
+      "uuid": "f4bdeaf3-69bc-4352-b003-f3b31bf134f8",
+      "source_id": 3,
+      "title": "Feedback System",
+      "description": "This is a feedback system.",
+      "status": "published",
+      "due_date": "2026-10-28T00:00:00.000Z",
+      "created_at": "2026-10-28T19:56:40.018Z",
+      "published_at": "2026-10-28T19:56:40.018Z",
+      "closed_at": null,
+      "creator_role": "admin"
+    },
+    {
+      "uuid": "3efb178d-e188-4c0c-bf07-32803c6fa58b",
+      "source_id": 4,
+      "title": "Campus Feedback",
+      "description": "Hello from Campus Feedback System",
+      "status": "published",
+      "due_date": "2026-10-28T00:00:00.000Z",
+      "created_at": "2026-10-28T20:21:09.291Z",
+      "published_at": "2026-10-28T20:21:09.291Z",
+      "closed_at": null,
+      "creator_role": "admin"
+    }
+  ],
+  "questions": [
+    {
+      "uuid": "64286acc-5e27-449e-8626-43aa6a4ec59e",
+      "source_id": 1,
+      "source_survey_id": 1,
+      "survey_uuid": "46124920-9abc-461b-a765-c97a41f2f3ff",
+      "question_text": "What do you think of the course?",
+      "question_type": "text",
+      "options": null,
+      "position": 1,
+      "is_required": true
+    },
+    {
+      "uuid": "40721700-8c39-4930-8a8e-59bdfdcbb7a9",
+      "source_id": 2,
+      "source_survey_id": 1,
+      "survey_uuid": "46124920-9abc-461b-a765-c97a41f2f3ff",
+      "question_text": "What is the most thing you like?",
+      "question_type": "multiple_choice",
+      "options": [
+        "Content",
+        "Theoretical ",
+        "Practical",
+        "Other (Answer next question)"
+      ],
+      "position": 2,
+      "is_required": true
+    },
+    {
+      "uuid": "82ea5e94-c8da-4ea7-b3b1-6fcb53345aa9",
+      "source_id": 3,
+      "source_survey_id": 1,
+      "survey_uuid": "46124920-9abc-461b-a765-c97a41f2f3ff",
+      "question_text": "What did you like?",
+      "question_type": "text",
+      "options": null,
+      "position": 3,
+      "is_required": false
+    },
+    {
+      "uuid": "8d2ef4ad-a4a7-413d-a58d-f87add52132e",
+      "source_id": 4,
+      "source_survey_id": 1,
+      "survey_uuid": "46124920-9abc-461b-a765-c97a41f2f3ff",
+      "question_text": "How much do you rate this course on a scale from 1 to 5?",
+      "question_type": "rating",
+      "options": null,
+      "position": 4,
+      "is_required": true
+    },
+    {
+      "uuid": "da5ec443-1ad5-43ef-b216-df72177eeee1",
+      "source_id": 6,
+      "source_survey_id": 3,
+      "survey_uuid": "f4bdeaf3-69bc-4352-b003-f3b31bf134f8",
+      "question_text": "How you doing?",
+      "question_type": "text",
+      "options": null,
+      "position": 1,
+      "is_required": true
+    },
+    {
+      "uuid": "377d4ad2-bc3a-43ba-9dac-da3c9ced5099",
+      "source_id": 7,
+      "source_survey_id": 4,
+      "survey_uuid": "3efb178d-e188-4c0c-bf07-32803c6fa58b",
+      "question_text": "Rate our System",
+      "question_type": "rating",
+      "options": null,
+      "position": 1,
+      "is_required": true
+    }
+  ],
+  "feedback": [
+    {
+      "uuid": "cfb09ae9-8476-4503-8bcd-12aae11be92d",
+      "source_id": 1,
+      "source_survey_id": null,
+      "survey_uuid": null,
+      "message": "I love this system.",
+      "rating": null,
+      "created_at": "2026-10-28T17:51:23.681Z",
+      "student_role": "student"
+    },
+    {
+      "uuid": "87787306-0c4f-46ce-8357-95e6a8fd152c",
+      "source_id": 2,
+      "source_survey_id": null,
+      "survey_uuid": null,
+      "message": "I love it.",
+      "rating": null,
+      "created_at": "2026-10-28T17:52:37.797Z",
+      "student_role": "student"
+    },
+    {
+      "uuid": "02eb2594-d4bc-449f-9001-383bfc935656",
+      "source_id": 3,
+      "source_survey_id": null,
+      "survey_uuid": null,
+      "message": "Awesome platform! Very helpful.",
+      "rating": 5,
+      "created_at": "2026-10-28T18:00:40.865Z",
+      "student_role": "student"
+    },
+    {
+      "uuid": "cc19fe91-2881-4e72-a9b3-eb36e4b32154",
+      "source_id": 4,
+      "source_survey_id": null,
+      "survey_uuid": null,
+      "message": "Awesome!1",
+      "rating": 5,
+      "created_at": "2026-10-28T19:54:27.753Z",
+      "student_role": "student"
+    },
+    {
+      "uuid": "f90a4e11-c66d-40e5-9692-85cff0c9c704",
+      "source_id": 5,
+      "source_survey_id": null,
+      "survey_uuid": null,
+      "message": "Amazing System!",
+      "rating": 5,
+      "created_at": "2026-10-28T19:55:48.805Z",
+      "student_role": "student"
+    }
+  ]
+}

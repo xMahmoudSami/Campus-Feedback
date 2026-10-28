@@ -83,6 +83,14 @@ async function testConnection() {
 }
 
 /**
+ * Acquires a client directly from the pool. Caller MUST release it.
+ * @returns {Promise<import('pg').PoolClient>}
+ */
+async function getClient() {
+  return await pool.connect();
+}
+
+/**
  * Closes all clients in the pool gracefully.
  * @returns {Promise<void>}
  */
@@ -94,6 +102,7 @@ module.exports = {
   pool,
   query,
   withTransaction,
+  getClient,
   testConnection,
   closePool,
 };

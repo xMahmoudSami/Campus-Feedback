@@ -126,6 +126,42 @@ describe('Authentication Endpoints', () => {
       });
       expect(res2.status).toBe(400);
     });
+
+    it('should NOT set Clear-Site-Data header on API responses to preserve DevTools inspection', async () => {
+      const res = await request(app).post('/api/auth/login').send({
+        identifier: 'nonexistent',
+        password: 'password',
+      });
+      expect(res.headers['clear-site-data']).toBeUndefined();
+      expect(res.headers['cache-control']).toContain('no-store');
+    });
+
+    it('should trim surrounding whitespace from identifier', async () => {
+      const plainPassword = 'SecretPassword123!';
+      const hashedPassword = await bcrypt.hash(plainPassword, 10);
+
+      vi.spyOn(db, 'query').mockResolvedValueOnce({
+        rows: [
+          {
+            id: 1,
+            username: 'admin',
+            email: 'admin@example.com',
+            password_hash: hashedPassword,
+            role: 'admin',
+            full_name: 'Admin User',
+            created_at: new Date().toISOString(),
+          },
+        ],
+      });
+
+      const res = await request(app).post('/api/auth/login').send({
+        identifier: '   admin   ',
+        password: plainPassword,
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+    });
   });
 
   describe('GET /api/auth/me', () => {

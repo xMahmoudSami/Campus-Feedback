@@ -29,10 +29,10 @@ app.use(
   })
 );
 
-// Cache invalidation headers so browser flushes stale cached HTML/JS
+// Prevent caching of dynamic API responses while preserving DevTools inspection
 app.use((req, res, next) => {
-  res.setHeader('Clear-Site-Data', '"cache"');
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
   next();
 });
 

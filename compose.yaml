@@ -1,3 +1,5 @@
+name: student_feedback_system
+
 services:
   database:
     build:
@@ -35,9 +37,17 @@ services:
       DB_USER: feedback_user
       DB_PASSWORD: feedback_password
       DB_NAME: student_feedback_db
-      JWT_SECRET: dev_jwt_secret_student_feedback_system_change_in_production
+      JWT_SECRET: d55935d4d295336f137283dc35136df8dbb728c6482780f4c400ea1faf7adca096c291ca38f9f34608f87af855392e7e7eabfd7090944d21ff63f4ab4a62574d
+      INITIAL_ADMIN_USERNAME: admin
+      INITIAL_ADMIN_EMAIL: admin@example.com
+      INITIAL_ADMIN_PASSWORD: admin123
+      INITIAL_STUDENT_USERNAME: student
+      INITIAL_STUDENT_EMAIL: student@example.com
+      INITIAL_STUDENT_PASSWORD: student123
     volumes:
       - ./backend/src:/app/src
+      - ./backend/package.json:/app/package.json
+      - ./database/seeds:/app/database/seeds
     ports:
       - "5000:5000"
 
@@ -46,6 +56,8 @@ services:
       context: ./frontend
     container_name: feedback-frontend
     restart: unless-stopped
+    depends_on:
+      - backend
     ports:
       - "8080:80"
     volumes:

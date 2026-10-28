@@ -1,7 +1,7 @@
 /**
  * Login page – form, demo chips, quote carousel, password toggle
  */
-document.addEventListener('DOMContentLoaded', () => {
+function initLogin() {
   Auth.redirectIfLoggedIn();
 
   const form = document.getElementById('login-form');
@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const submitBtn = document.getElementById('login-btn');
   const errorEl = document.getElementById('login-error');
   const togglePw = document.getElementById('toggle-pw');
+  if (!form) return;
 
   // Password visibility
   if (togglePw) {
@@ -85,4 +86,10 @@ document.addEventListener('DOMContentLoaded', () => {
       else submitBtn.textContent = 'Sign in';
     }
   });
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initLogin);
+} else {
+  initLogin();
+}

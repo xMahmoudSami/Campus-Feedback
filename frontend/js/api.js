@@ -105,11 +105,19 @@ async function apiFetch(path, options = {}) {
   const res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
 
   if (res.status === 401) {
-    const isAuthRoute = path.startsWith('/auth/login') || path.startsWith('/auth/register') || path.startsWith('/auth/signup');
-    const isAuthPage = typeof window !== 'undefined' && window.location && (
-      (window.location.pathname || '').endsWith('login.html') ||
-      (window.location.pathname || '').endsWith('signup.html')
-    );
+    const normPath = (path || '').toLowerCase();
+    const isAuthRoute = normPath.includes('/auth/login') ||
+                        normPath.includes('/auth/register') ||
+                        normPath.includes('/auth/signup') ||
+                        normPath.startsWith('/auth/') ||
+                        normPath.startsWith('/api/auth/');
+    const pathname = (typeof window !== 'undefined' && window.location ? (window.location.pathname || '') : '').toLowerCase();
+    const isAuthPage = pathname.endsWith('login.html') ||
+                       pathname.endsWith('signup.html') ||
+                       pathname === '/' ||
+                       pathname === '/index.html' ||
+                       pathname.endsWith('/login') ||
+                       pathname.endsWith('/signup');
 
     // Only redirect if an authenticated session expired on a protected page
     if (!isAuthRoute && !isAuthPage && !options.skipAuthRedirect) {

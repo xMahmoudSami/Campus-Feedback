@@ -82,6 +82,16 @@ CREATE TABLE survey_views (
     viewed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- seed_import_map: tracks stable seed UUIDs to local IDs for cross-database merging
+CREATE TABLE IF NOT EXISTS seed_import_map (
+    entity_type  VARCHAR(32) NOT NULL,
+    entity_uuid  UUID NOT NULL,
+    local_id     INT NOT NULL,
+    content_hash VARCHAR(64) NOT NULL,
+    imported_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (entity_type, entity_uuid)
+);
+
 -- ========== Indexes ==========
 CREATE INDEX idx_surveys_status     ON surveys(status);
 CREATE INDEX idx_questions_survey   ON questions(survey_id);
@@ -89,6 +99,7 @@ CREATE INDEX idx_sresponses_survey  ON survey_responses(survey_id);
 CREATE INDEX idx_answers_response   ON answers(response_id);
 CREATE INDEX idx_feedback_student   ON feedback(student_id);
 CREATE INDEX idx_views_survey       ON survey_views(survey_id);
+CREATE INDEX idx_seed_import_local  ON seed_import_map(entity_type, local_id);
 
 -- ========== Example statistics query (admin dashboard reference) ==========
 -- SELECT s.id, s.title,
