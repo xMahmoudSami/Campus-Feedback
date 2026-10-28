@@ -194,8 +194,12 @@ const UI = {
     });
   },
 
-  // ─── Sidebar toggle (mobile) ──────────────────────────────
-  initSidebar() {
+  // ─── Sidebar toggle (mobile) & standalone mount ───────────
+  initSidebar(activePage) {
+    if (typeof SidebarComponent !== 'undefined') {
+      SidebarComponent.init(activePage);
+    }
+
     const toggle = document.querySelector('.mobile-menu-btn, .menu-toggle');
     const sidebar = document.querySelector('.sidebar');
     let overlay = document.querySelector('.sidebar-overlay');
@@ -221,6 +225,13 @@ const UI = {
   populateUserInfo() {
     // Globally remove any legacy topbar or header from the DOM
     document.querySelectorAll('header, header.topbar, .topbar, .topbar-user').forEach((el) => el.remove());
+
+    if (typeof SidebarComponent !== 'undefined') {
+      const sidebar = document.querySelector('.sidebar');
+      if (sidebar && !sidebar.querySelector('.sidebar-header')) {
+        SidebarComponent.init();
+      }
+    }
 
     const user = Auth.getUser();
     if (!user) return;
