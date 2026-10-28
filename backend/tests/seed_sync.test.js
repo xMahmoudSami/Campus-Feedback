@@ -20,17 +20,28 @@ describe('Safe Database Seed Merging & Multi-Developer Synchronization', () => {
       ],
       surveys: [],
       questions: [],
+      responses: [],
+      answers: [],
       feedback: [],
+      survey_views: [],
       seed_import_map: [], // { entity_type, entity_uuid, local_id, content_hash }
       sequences: {
+        users_id_seq: 3,
         surveys_id_seq: 1,
         questions_id_seq: 1,
+        survey_responses_id_seq: 1,
+        answers_id_seq: 1,
         feedback_id_seq: 1,
+        survey_views_id_seq: 1,
       },
       nextId: {
+        users: 100,
         surveys: 1,
         questions: 1,
+        responses: 1,
+        answers: 1,
         feedback: 1,
+        survey_views: 1,
       },
     };
   }
@@ -68,10 +79,36 @@ describe('Safe Database Seed Merging & Multi-Developer Synchronization', () => {
           };
         }
 
+        if (cleanSql.includes('SELECT id, full_name, email, username, role, created_at FROM users') || (cleanSql.includes('FROM users') && cleanSql.includes('ORDER BY id ASC'))) {
+          return { rows: state.users.map((u) => ({ ...u, created_at: new Date().toISOString() })) };
+        }
+
+        if (cleanSql.includes('SELECT id FROM users WHERE id = $1')) {
+          const uId = params[0];
+          const matched = state.users.filter((u) => u.id === uId);
+          return { rows: matched.map((u) => ({ id: u.id })) };
+        }
+
+        if (cleanSql.includes('INSERT INTO users (id,')) {
+          const [id, fullName, email, username, passwordHash, role, createdAt] = params;
+          const newUser = {
+            id: Number(id),
+            full_name: fullName,
+            email,
+            username,
+            role,
+            created_at: createdAt || new Date().toISOString(),
+          };
+          state.users.push(newUser);
+          state.nextId.users = Math.max(state.nextId.users, Number(id) + 1);
+          return { rows: [newUser] };
+        }
+
         if (cleanSql.includes('INSERT INTO users')) {
           const [fullName, email, username, passwordHash, role] = params;
+          const assignedId = state.nextId.users++;
           const newUser = {
-            id: state.users.length + 1,
+            id: assignedId,
             full_name: fullName,
             email,
             username,
@@ -149,13 +186,13 @@ describe('Safe Database Seed Merging & Multi-Developer Synchronization', () => {
           return { rows: found.map((s) => ({ id: s.id })) };
         }
 
-        if (cleanSql.includes('SELECT s.*, u.role as creator_role FROM surveys s JOIN users u')) {
+        if (cleanSql.includes('FROM surveys s JOIN users u') || cleanSql.includes('FROM surveys s')) {
           const approved = state.surveys
             .filter((s) => {
               const u = state.users.find((u) => u.id === s.created_by);
               return u && u.role === 'admin';
             })
-            .map((s) => ({ ...s, creator_role: 'admin' }));
+            .map((s) => ({ ...s, creator_role: 'admin', creator_username: 'admin' }));
           return { rows: approved };
         }
 
@@ -277,11 +314,19 @@ describe('Safe Database Seed Merging & Multi-Developer Synchronization', () => {
         }
 
         // 6. Feedback Queries
-        if (cleanSql.includes('FROM feedback f JOIN users u ON f.student_id = u.id WHERE u.username = \'student\'')) {
-          const demoFeedback = state.feedback.filter((f) => {
-            const u = state.users.find((u) => u.id === f.student_id);
-            return u && u.username === 'student';
-          });
+        if (cleanSql.includes('FROM feedback f JOIN users u')) {
+          const demoFeedback = state.feedback
+            .filter((f) => {
+              const u = state.users.find((u) => u.id === f.student_id);
+              return u && u.username === 'student';
+            })
+            .map((f) => {
+              const u = state.users.find((u) => u.id === f.student_id);
+              return {
+                ...f,
+                student_username: u ? u.username : 'student',
+              };
+            });
           return { rows: demoFeedback };
         }
 
@@ -338,7 +383,145 @@ describe('Safe Database Seed Merging & Multi-Developer Synchronization', () => {
           return { rows: [] };
         }
 
+        // 6b. Survey Responses Queries
+        if (cleanSql.includes('FROM survey_responses sr JOIN users u')) {
+          const matched = state.responses.map((r) => {
+            const u = state.users.find((u) => u.id === r.student_id);
+            return {
+              ...r,
+              student_username: u ? u.username : 'student',
+            };
+          });
+          return { rows: matched };
+        }
+
+        if (cleanSql.includes('FROM survey_responses') && cleanSql.includes('WHERE survey_id = $1 AND student_id = $2')) {
+          const [sId, stId] = params;
+          const found = state.responses.filter((r) => r.survey_id === sId && r.student_id === stId);
+          return { rows: found };
+        }
+
+        if (cleanSql.includes('SELECT id FROM survey_responses WHERE id = $1')) {
+          const rId = params[0];
+          const found = state.responses.filter((r) => r.id === rId);
+          return { rows: found.map((r) => ({ id: r.id })) };
+        }
+
+        if (cleanSql.includes('INSERT INTO survey_responses (id,')) {
+          const [id, survey_id, student_id, status, started_at, completed_at] = params;
+          const newR = {
+            id: Number(id),
+            survey_id,
+            student_id,
+            status,
+            started_at,
+            completed_at,
+          };
+          state.responses.push(newR);
+          state.nextId.responses = Math.max(state.nextId.responses, Number(id) + 1);
+          return { rows: [{ id: newR.id }] };
+        }
+
+        if (cleanSql.includes('INSERT INTO survey_responses (survey_id,')) {
+          const [survey_id, student_id, status, started_at, completed_at] = params;
+          const assignedId = state.nextId.responses++;
+          const newR = {
+            id: assignedId,
+            survey_id,
+            student_id,
+            status,
+            started_at,
+            completed_at,
+          };
+          state.responses.push(newR);
+          return { rows: [{ id: assignedId }] };
+        }
+
+        // 6c. Answers Queries
+        if (cleanSql.includes('FROM answers a WHERE a.response_id = ANY($1)')) {
+          const rIds = params[0] || [];
+          const matched = state.answers.filter((a) => rIds.includes(a.response_id));
+          return { rows: matched };
+        }
+
+        if (cleanSql.includes('FROM answers') && cleanSql.includes('WHERE response_id = $1 AND question_id = $2')) {
+          const [rId, qId] = params;
+          const found = state.answers.filter((a) => a.response_id === rId && a.question_id === qId);
+          return { rows: found };
+        }
+
+        if (cleanSql.includes('SELECT id FROM answers WHERE id = $1')) {
+          const aId = params[0];
+          const found = state.answers.filter((a) => a.id === aId);
+          return { rows: found.map((a) => ({ id: a.id })) };
+        }
+
+        if (cleanSql.includes('INSERT INTO answers (id,')) {
+          const [id, response_id, question_id, answer_text, rating] = params;
+          const newA = {
+            id: Number(id),
+            response_id,
+            question_id,
+            answer_text,
+            rating,
+          };
+          state.answers.push(newA);
+          state.nextId.answers = Math.max(state.nextId.answers, Number(id) + 1);
+          return { rows: [{ id: newA.id }] };
+        }
+
+        if (cleanSql.includes('INSERT INTO answers (response_id,')) {
+          const [response_id, question_id, answer_text, rating] = params;
+          const assignedId = state.nextId.answers++;
+          const newA = {
+            id: assignedId,
+            response_id,
+            question_id,
+            answer_text,
+            rating,
+          };
+          state.answers.push(newA);
+          return { rows: [{ id: assignedId }] };
+        }
+
+        // 6d. Survey Views Queries
+        if (cleanSql.includes('FROM survey_views sv JOIN users u')) {
+          const matched = state.survey_views.map((v) => {
+            const u = state.users.find((u) => u.id === v.student_id);
+            return {
+              ...v,
+              student_username: u ? u.username : 'student',
+            };
+          });
+          return { rows: matched };
+        }
+
+        if (cleanSql.includes('FROM survey_views') && cleanSql.includes('WHERE survey_id = $1 AND student_id = $2 AND viewed_at = $3')) {
+          const [sId, stId, vAt] = params;
+          const found = state.survey_views.filter(
+            (v) => v.survey_id === sId && v.student_id === stId && v.viewed_at === vAt
+          );
+          return { rows: found };
+        }
+
+        if (cleanSql.includes('INSERT INTO survey_views')) {
+          const [survey_id, student_id, viewed_at] = params;
+          const newV = {
+            id: state.nextId.survey_views++,
+            survey_id,
+            student_id,
+            viewed_at,
+          };
+          state.survey_views.push(newV);
+          return { rows: [{ id: newV.id }] };
+        }
+
         // 7. Sequence alignment
+        if (cleanSql.includes("SELECT setval('users_id_seq'")) {
+          const maxId = state.users.length > 0 ? Math.max(...state.users.map((u) => u.id)) : 1;
+          state.sequences.users_id_seq = maxId;
+          return { rows: [{ setval: maxId }] };
+        }
         if (cleanSql.includes("SELECT setval('surveys_id_seq'")) {
           const maxId = state.surveys.length > 0 ? Math.max(...state.surveys.map((s) => s.id)) : 1;
           state.sequences.surveys_id_seq = maxId;
@@ -349,9 +532,24 @@ describe('Safe Database Seed Merging & Multi-Developer Synchronization', () => {
           state.sequences.questions_id_seq = maxId;
           return { rows: [{ setval: maxId }] };
         }
+        if (cleanSql.includes("SELECT setval('survey_responses_id_seq'")) {
+          const maxId = state.responses.length > 0 ? Math.max(...state.responses.map((r) => r.id)) : 1;
+          state.sequences.survey_responses_id_seq = maxId;
+          return { rows: [{ setval: maxId }] };
+        }
+        if (cleanSql.includes("SELECT setval('answers_id_seq'")) {
+          const maxId = state.answers.length > 0 ? Math.max(...state.answers.map((a) => a.id)) : 1;
+          state.sequences.answers_id_seq = maxId;
+          return { rows: [{ setval: maxId }] };
+        }
         if (cleanSql.includes("SELECT setval('feedback_id_seq'")) {
           const maxId = state.feedback.length > 0 ? Math.max(...state.feedback.map((f) => f.id)) : 1;
           state.sequences.feedback_id_seq = maxId;
+          return { rows: [{ setval: maxId }] };
+        }
+        if (cleanSql.includes("SELECT setval('survey_views_id_seq'")) {
+          const maxId = state.survey_views.length > 0 ? Math.max(...state.survey_views.map((v) => v.id)) : 1;
+          state.sequences.survey_views_id_seq = maxId;
           return { rows: [{ setval: maxId }] };
         }
 
@@ -972,6 +1170,114 @@ describe('Safe Database Seed Merging & Multi-Developer Synchronization', () => {
       expect(fileRaw).not.toContain('password_hash');
       expect(fileRaw).not.toContain('jwt');
       expect(fileRaw).not.toContain('real@example.com');
+    });
+  });
+
+  // =========================================================================
+  // SCENARIO 11: Responses & Answers full round-trip export & import
+  // =========================================================================
+  describe('Scenario 11: Responses & Answers export, import, and cross-developer mapping', () => {
+    it('should export responses and answers, and import them mapping foreign keys correctly', async () => {
+      // 1. Setup local survey, question, student, response, and answer
+      mockState.surveys.push({
+        id: 10,
+        title: 'Full Stack Engineering Survey',
+        description: 'Testing responses',
+        status: 'published',
+        created_by: 1, // admin
+      });
+      mockState.questions.push({
+        id: 50,
+        survey_id: 10,
+        question_text: 'Rate the backend architecture',
+        question_type: 'rating',
+        options: null,
+        position: 1,
+        is_required: true,
+      });
+      mockState.users.push({
+        id: 5,
+        username: 'student_tester',
+        email: 'tester@example.com',
+        full_name: 'Student Tester',
+        role: 'student',
+      });
+      mockState.responses.push({
+        id: 70,
+        survey_id: 10,
+        student_id: 5,
+        status: 'completed',
+        started_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(),
+      });
+      mockState.answers.push({
+        id: 90,
+        response_id: 70,
+        question_id: 50,
+        answer_text: '5',
+        rating: 5,
+      });
+      mockState.survey_views.push({
+        id: 1,
+        survey_id: 10,
+        student_id: 5,
+        viewed_at: new Date().toISOString(),
+      });
+
+      // 2. Export
+      const exportPath = path.join(tempDir, 'responses_export.json');
+      const exported = await exportSeedData({ outputPath: exportPath });
+
+      expect(exported.responses.length).toBe(1);
+      expect(exported.responses[0].status).toBe('completed');
+      expect(exported.responses[0].student_username).toBe('student_tester');
+      expect(exported.answers.length).toBe(1);
+      expect(exported.answers[0].answer_text).toBe('5');
+      expect(exported.answers[0].rating).toBe(5);
+      expect(exported.survey_views.length).toBe(1);
+
+      // 3. Clear mock state to simulate a teammate's fresh database
+      mockState.surveys = [];
+      mockState.questions = [];
+      mockState.responses = [];
+      mockState.answers = [];
+      mockState.survey_views = [];
+      mockState.seed_import_map = [];
+
+      // 4. Import on teammate's database
+      const importResult = await importSeedData(exportPath);
+
+      expect(importResult.surveys.inserted).toBe(1);
+      expect(importResult.questions.inserted).toBe(1);
+      expect(importResult.responses.inserted).toBe(1);
+      expect(importResult.answers.inserted).toBe(1);
+      expect(importResult.views.inserted).toBe(1);
+
+      // 5. Verify relationship integrity in teammate's DB
+      expect(mockState.surveys.length).toBe(1);
+      const importedSurvey = mockState.surveys[0];
+      expect(importedSurvey.title).toBe('Full Stack Engineering Survey');
+
+      expect(mockState.questions.length).toBe(1);
+      const importedQuestion = mockState.questions[0];
+      expect(importedQuestion.survey_id).toBe(importedSurvey.id);
+
+      expect(mockState.responses.length).toBe(1);
+      const importedResponse = mockState.responses[0];
+      expect(importedResponse.survey_id).toBe(importedSurvey.id);
+
+      expect(mockState.answers.length).toBe(1);
+      const importedAnswer = mockState.answers[0];
+      expect(importedAnswer.response_id).toBe(importedResponse.id);
+      expect(importedAnswer.question_id).toBe(importedQuestion.id);
+      expect(importedAnswer.rating).toBe(5);
+
+      // 6. Idempotent re-import verification
+      const reimportResult = await importSeedData(exportPath);
+      expect(reimportResult.responses.inserted).toBe(0);
+      expect(reimportResult.responses.preserved).toBe(1);
+      expect(reimportResult.answers.inserted).toBe(0);
+      expect(reimportResult.answers.preserved).toBe(1);
     });
   });
 });
