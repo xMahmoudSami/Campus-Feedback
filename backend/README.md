@@ -1,6 +1,6 @@
-# Student Feedback System - Backend API
+# Campus Feedback - Backend API
 
-A robust, production-ready Node.js & Express REST API for the **Student Feedback System**, providing role-based survey management, response submissions, student feedback, and database-backed analytics.
+A production-ready Node.js & Express REST API for **Campus Feedback**, providing secure role-based survey management, response submissions, student feedback, database-backed analytics, and non-destructive seed synchronization.
 
 ---
 
@@ -8,7 +8,8 @@ A robust, production-ready Node.js & Express REST API for the **Student Feedback
 
 - **Node.js:** Node.js v24 (v24.x LTS) — matching the project Dockerfile (`node:24-alpine`).
 - **npm:** v10+ or v11+
-- **Database:** PostgreSQL (v14+ recommended)
+- **Database:** PostgreSQL (v14+ recommended; v16 used in Docker Compose)
+- **Containerization:** Docker & Docker Compose
 
 ---
 
@@ -25,20 +26,20 @@ backend/
 │   ├── app.js                  # Express application setup & middleware
 │   ├── server.js               # HTTP listener on 0.0.0.0 & graceful shutdown
 │   ├── config/
-│   │   ├── db.js               # PostgreSQL pool & transaction manager
-│   │   └── env.js              # Environment variable parsing & defaults
-│   ├── controllers/            # Request handlers
+│   │   ├── db.js               # PostgreSQL pool & transaction manager (withTransaction)
+│   │   └── env.js              # Environment variable parsing & validation
+│   ├── controllers/            # HTTP request controllers
 │   │   ├── authController.js
 │   │   ├── dashboardController.js
 │   │   ├── feedbackController.js
 │   │   ├── healthController.js
 │   │   ├── responseController.js
 │   │   └── surveyController.js
-│   ├── middleware/             # Interceptors & validation
+│   ├── middleware/             # Interceptors & error handlers
 │   │   ├── authMiddleware.js   # JWT verification & role authorization
 │   │   ├── errorHandler.js     # Centralized error handler & status codes
 │   │   └── validateRequest.js  # Input payload & param validation
-│   ├── routes/                 # API endpoint definitions
+│   ├── routes/                 # API route definitions
 │   │   ├── authRoutes.js
 │   │   ├── dashboardRoutes.js
 │   │   ├── feedbackRoutes.js
@@ -46,147 +47,113 @@ backend/
 │   │   ├── responseRoutes.js
 │   │   ├── surveyRoutes.js
 │   │   └── index.js
-│   ├── scripts/
-│   │   └── seed.js             # Idempotent demo account & survey seeder
-│   └── services/               # Core business & data access logic
-│       ├── authService.js
-│       ├── dashboardService.js
-│       ├── feedbackService.js
-│       ├── responseService.js
-│       └── surveyService.js
-├── tests/                      # Automated test suites (61 tests)
-│   ├── auth.test.js
-│   ├── dashboard.test.js
-│   ├── demo_accounts.test.js
-│   ├── errors.test.js
-│   ├── feedback.test.js
-│   ├── health.test.js
-│   ├── responses.test.js
-│   ├── surveys.test.js
-│   └── helpers/
-│       └── testUtils.js
-└── docs/                       # Specifications & Integration Contracts
-    ├── API.md                  # Comprehensive endpoint specifications
-    ├── DATABASE_COMPATIBILITY.md # Database schema audit & column mappings
-    ├── INTEGRATION.md          # Multi-container & Compose guidelines
-    └── SCHEMA_CONTRACT.md      # Conceptual schema rules & assumptions
+│   ├── scripts/                # Database utilities & seed tools
+│   │   ├── seed.js             # Demo account seeder
+│   │   ├── exportSeed.js       # Complete database seed exporter
+│   │   └── importSeed.js       # Safe multi-developer seed merge importer
+│   ├── services/               # Core business & data access services
+│   │   ├── authService.js
+│   │   ├── dashboardService.js # Analytics, timeseries & KPI calculations
+│   │   ├── feedbackService.js
+│   │   ├── responseService.js  # Submission processing & deadline validation
+│   │   └── surveyService.js    # Survey CRUD & expiration evaluation
+│   └── utils/
+│       └── dateUtils.js        # Survey expiration & lifecycle utilities
+└── tests/                      # Automated Vitest test suite (97 tests)
+    ├── auth.test.js
+    ├── dashboard.test.js
+    ├── demo_accounts.test.js
+    ├── errors.test.js
+    ├── feedback.test.js
+    ├── health.test.js
+    ├── responses.test.js
+    ├── seed_sync.test.js
+    ├── surveys.test.js
+    └── helpers/
+        └── testUtils.js
 ```
 
 ---
 
-## 3. Dependency Installation
+## 3. Key Business Logic Implementations
 
-From within the `backend/` directory:
+### 3.1. Survey Expiration Logic
+Survey expiration is evaluated and enforced centrally in `backend/src/utils/dateUtils.js`:
+- `isSurveyExpired(dueDate, [referenceTime])`:
+  - Returns `false` if `dueDate` is not set (indefinite validity).
+  - Recognizes date-only values (midnight UTC, e.g., `2026-10-28T00:00:00.000Z`) as extending through the very end of that calendar day (`23:59:59.999 UTC`). On October 29, the October 28 deadline is strictly expired.
+  - Recognizes specific timestamps with non-zero time (e.g., `2026-10-28T18:00:00.000Z`) expiring at that exact second.
+  - Supports client timezone awareness via the `x-client-time` request header.
+- `getEffectiveStatus(status, dueDate, [referenceTime])`:
+  - Returns `'closed'` if manually closed by an admin (`closed_at` set).
+  - Returns `'expired'` if status is `'published'` and the due date has passed.
+  - Returns `'published'` if published and active.
+  - Returns `'draft'` if draft.
+- **Backend Rejection on Submission:**
+  `responseService.submitResponse` checks `isSurveyExpired(survey.due_date)` before accepting answers. If expired, it halts and throws a `400 Bad Request` `ValidationError` without modifying database state.
 
-```bash
-npm install
-```
+### 3.2. Dynamic Admin Dashboard & Survey Activity Timeseries
+`dashboardService.getAdminDashboard()` computes all metrics dynamically from PostgreSQL records:
+- **Last 7 Calendar Days Activity:**
+  - Queries `survey_views` (`viewed_at`) and `survey_responses` (`completed_at`).
+  - Uses `generate_series` to return an exact 7-day chronological timeseries ending on today's calendar date:
+    `activity: { labels: ['Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue', 'Wed'], dates: [...], views: [...], responses: [...] }`.
+  - Activity is assigned to the exact weekday it occurred rather than lumped onto Sunday.
+- **Month-over-Month KPI Growth:**
+  - Compares records created this month (`created_at >= date_trunc('month', NOW())`) against records from the prior month (`date_trunc('month', NOW() - INTERVAL '1 month')`).
+  - Returns percentage changes:
+    `changes: { surveys_change, students_change, responses_change, completion_change }`.
+- **Accurate Registered Student Count:**
+  - `overview.students_count`: Derived from `SELECT COUNT(*) FROM users WHERE role = 'student'`, guaranteeing accurate registered student counts rather than feedback entries.
 
 ---
 
-## 4. Environment Variables Configuration
+## 4. Multi-Developer Seed Export & Merge Workflow
 
-Copy `.env.example` to `.env`:
+To collaborate across independent PostgreSQL instances without data loss:
 
 ```bash
-cp .env.example .env
+# Export local database records to database/seeds/dev_seed.json
+npm run seed:export
+
+# Merge an incoming seed file into local PostgreSQL database
+npm run seed:import
+# Or specify a custom seed file path:
+npm run seed:import -- path/to/teammate_seed.json
 ```
 
-### Key Configuration Variables:
+**Supported Entities:**
+- `users` (preserving passwords and roles)
+- `surveys` (remapping IDs safely if numeric ID conflicts arise)
+- `questions` (maintaining position, options, types, and remapped survey foreign keys)
+- `survey_responses` (preserving attempt history and timestamps)
+- `answers` (preserving student responses and ratings)
+- `feedback` (preserving ratings, comments, and survey associations)
+- `survey_views` (preserving audit view logs)
+
+---
+
+## 5. Environment Variables
 
 | Variable | Description | Default |
 | :--- | :--- | :--- |
-| `PORT` | Listening HTTP port | `5000` |
-| `NODE_ENV` | Environment (`development` or `production`) | `development` |
-| `DB_HOST` | PostgreSQL Host (`database` in Docker Compose; `localhost` on host) | `database` (prod) / `localhost` (dev) |
-| `DB_PORT` | PostgreSQL Port | `5432` |
-| `DB_USER` | PostgreSQL Username | `feedback_user` |
-| `DB_PASSWORD`| PostgreSQL Password | `feedback_password` |
-| `DB_NAME` | PostgreSQL Database name | `student_feedback_db` |
-| `JWT_SECRET` | Secret key used to sign and verify JWT tokens | *(configured in .env)* |
+| `PORT` | HTTP port | `5000` |
+| `NODE_ENV` | Environment mode (`development`, `production`, `test`) | `development` |
+| `DB_HOST` | PostgreSQL host (`database` in Docker, `localhost` on host) | `localhost` |
+| `DB_PORT` | PostgreSQL port | `5432` |
+| `DB_USER` | PostgreSQL username | `feedback_user` |
+| `DB_PASSWORD` | PostgreSQL password | `feedback_password` |
+| `DB_NAME` | PostgreSQL database name | `student_feedback_db` |
+| `JWT_SECRET` | Secret key for signing JSON Web Tokens | *(configured in .env)* |
 | `JWT_EXPIRES_IN` | Token validity duration | `24h` |
-| `CORS_ORIGIN`| Allowed origins (comma-separated or `*`) | `*` |
+| `CORS_ORIGIN` | Allowed cross-origin origins | `*` |
 
 ---
 
-## 5. Official Demo Accounts & Seeding Strategy
-
-The application does **not** expose a public registration endpoint. All user accounts are pre-created.
-
-### Separation of Responsibilities:
-- **Database (`database/init.sql`):** Purely responsible for initializing the database schema, table definitions, foreign-key constraints, and indexes. It contains no legacy demo users or hardcoded sample application data.
-- **Backend (`src/scripts/seed.js`):** Responsible for creating or recognizing the two official demo accounts inside a managed database transaction.
-- **Application Logic:** Surveys, questions, responses, and feedback are created through normal application workflows (e.g. Admin REST endpoints).
-
-### Official Coursework Demo Credentials:
-- **Administrator:**
-  - **Email:** `admin@example.com`
-  - **Username:** `admin`
-  - **Password:** `admin123`
-  - **Role:** `admin`
-- **Student:**
-  - **Email:** `student@example.com`
-  - **Username:** `student`
-  - **Password:** `student123`
-  - **Role:** `student`
-
-> [!WARNING]
-> **Production Safety:** Known demo credentials are provided strictly for local development, grading, and demonstration. They must **never** be provisioned in production environments.
-
-### How to Run Seeding:
-To provision or safely recognize the demo accounts, run from within `backend/`:
+## 6. Running Tests
 
 ```bash
-# Seed or recognize official demo accounts
-npm run seed
-```
-
-> **Idempotency & Safety:** The seeding script [`src/scripts/seed.js`](./src/scripts/seed.js) runs inside a database transaction (`withTransaction`). If an account already exists with matching credentials, it is recognized without resetting passwords or overwriting data. If a username or email conflicts with an unexpected existing account, the script halts with a clear, actionable error.
-
----
-
-## 6. Local Backend Startup
-
-```bash
-# Start in production mode
-npm start
-
-# Start in development mode (with hot reloading via nodemon)
-npm run dev
-```
-
-The application binds to `0.0.0.0` on the configured `PORT` (default `5000`):
-- **HTTP Liveness:** `GET http://localhost:5000/api/health`
-- **Database Readiness:** `GET http://localhost:5000/api/health/db`
-
----
-
-## 7. Running Automated Tests
-
-The test suite runs with **Vitest** and **Supertest**. Tests run completely offline with test doubles and mocks, without requiring a live PostgreSQL instance:
-
-```bash
-# Run all 61 automated tests
 npm test
-
-# Run tests in watch mode
-npm run test:watch
 ```
 
----
-
-## 8. API Documentation & Integration Contracts
-
-Comprehensive documentation is available inside [`backend/docs/`](./docs/):
-- **Endpoint Reference & Examples:** [`docs/API.md`](./docs/API.md)
-- **Database Schema (Source of Truth):** `database/init.sql`
-- **Database Compatibility Status:** [`docs/DATABASE_COMPATIBILITY.md`](./docs/DATABASE_COMPATIBILITY.md)
-- **Multi-Container Integration Guidance:** [`docs/INTEGRATION.md`](./docs/INTEGRATION.md)
-
----
-
-## 9. Database & Multi-Container Integration Status
-
-1. **Database Schema Integration:** Completed. The backend has been comprehensively audited and aligned with `database/init.sql` (all column names, types, foreign keys, and constraints match).
-2. **Demo Accounts:** Admin (`admin@example.com` / `admin123`) and Student (`student@example.com` / `student123`) are provisioned via idempotent backend seeding (`npm run seed`) and authenticated against real bcrypt hashes.
-3. **Container Orchestration Handover:** The containerization team member can run `compose.yaml` with service name `database` on the shared bridge network to match `DB_HOST=database`.
+Executes Vitest covering authentication, authorization, survey expiration, deadline boundaries, response submission transactions, 7-day activity timeseries, and seed sync idempotency (97 tests).

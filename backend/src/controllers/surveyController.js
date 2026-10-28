@@ -6,7 +6,8 @@ const surveyService = require('../services/surveyService');
 async function getSurveys(req, res, next) {
   try {
     const filters = { status: req.query.status };
-    const surveys = await surveyService.getSurveys(req.user, filters);
+    const clientTime = req.headers['x-client-time'] || null;
+    const surveys = await surveyService.getSurveys(req.user, filters, clientTime);
     res.status(200).json({
       success: true,
       count: surveys.length,
@@ -27,8 +28,9 @@ async function getSurveyById(req, res, next) {
       ipAddress: req.ip || req.connection?.remoteAddress,
       userAgent: req.headers['user-agent'],
     };
+    const clientTime = req.headers['x-client-time'] || null;
 
-    const survey = await surveyService.getSurveyById(surveyId, req.user, requestMeta);
+    const survey = await surveyService.getSurveyById(surveyId, req.user, requestMeta, clientTime);
     res.status(200).json({
       success: true,
       data: { survey },

@@ -23,7 +23,8 @@ async function getAdminDashboard(req, res, next) {
 async function getStudentDashboard(req, res, next) {
   try {
     const studentId = req.user.id;
-    const dashboardData = await dashboardService.getStudentDashboard(studentId);
+    const clientTime = req.headers['x-client-time'] || null;
+    const dashboardData = await dashboardService.getStudentDashboard(studentId, clientTime);
     res.status(200).json({
       success: true,
       data: dashboardData,

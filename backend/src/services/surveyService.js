@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { NotFoundError, ForbiddenError, ValidationError } = require('../middleware/errorHandler');
+const { isSurveyExpired, getEffectiveStatus } = require('../utils/dateUtils');
 
 /**
  * Retrieves surveys based on user role.
@@ -10,7 +11,7 @@ const { NotFoundError, ForbiddenError, ValidationError } = require('../middlewar
  * @param {object} user - Authenticated user { id, role }
  * @param {object} [filters] - Query filters { status }
  */
-async function getSurveys(user, filters = {}) {
+async function getSurveys(user, filters = {}, clientTime = null) {
   const isStudent = user.role === 'student';
   const params = [];
   const whereClauses = [];
@@ -56,7 +57,12 @@ async function getSurveys(user, filters = {}) {
   `;
 
   const result = await db.query(queryText, params);
-  return result.rows;
+  const refDate = clientTime ? new Date(clientTime) : new Date();
+  return result.rows.map((row) => ({
+    ...row,
+    is_expired: isSurveyExpired(row.due_date, refDate),
+    effective_status: getEffectiveStatus(row.status, row.due_date, refDate),
+  }));
 }
 
 /**
@@ -65,8 +71,10 @@ async function getSurveys(user, filters = {}) {
  *
  * @param {number} surveyId
  * @param {object} user - Authenticated user
+ * @param {object} [requestMeta]
+ * @param {string|Date|null} [clientTime]
  */
-async function getSurveyById(surveyId, user) {
+async function getSurveyById(surveyId, user, requestMeta = {}, clientTime = null) {
   const surveyRes = await db.query(
     `SELECT s.id, s.title, s.description, s.status, s.due_date, s.created_by, s.created_at, s.published_at, s.closed_at,
             u.username AS creator_username
@@ -139,8 +147,11 @@ async function getSurveyById(surveyId, user) {
     }
   }
 
+  const refDate = clientTime ? new Date(clientTime) : new Date();
   return {
     ...survey,
+    is_expired: isSurveyExpired(survey.due_date, refDate),
+    effective_status: getEffectiveStatus(survey.status, survey.due_date, refDate),
     has_submitted: hasSubmitted,
     my_response: myResponse,
     questions: questionsRes.rows,

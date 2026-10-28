@@ -140,5 +140,54 @@ describe('Dashboard Endpoints', () => {
       expect(res.body.data.summary.feedback_submitted_count).toBe(2);
       expect(res.body.data.surveys.length).toBe(2);
     });
+
+    it('should exclude expired surveys from student available and pending counts', async () => {
+      vi.spyOn(db, 'query').mockImplementation(async (sql, params) => {
+        if (sql.includes('FROM surveys s') && sql.includes("s.status = 'published'")) {
+          return {
+            rows: [
+              {
+                id: 1,
+                title: 'Active Survey',
+                description: 'Open survey',
+                status: 'published',
+                due_date: new Date(Date.now() + 86400000).toISOString(),
+                question_count: 2,
+                response_id: null,
+                submitted_at: null,
+                is_completed: false,
+              },
+              {
+                id: 2,
+                title: 'Expired Survey',
+                description: 'Past due date survey',
+                status: 'published',
+                due_date: '2026-10-20T00:00:00.000Z',
+                question_count: 3,
+                response_id: null,
+                submitted_at: null,
+                is_completed: false,
+              },
+            ],
+          };
+        }
+        if (sql.includes('FROM feedback WHERE student_id = $1')) {
+          return { rows: [{ count: 0 }] };
+        }
+        return { rows: [] };
+      });
+
+      const res = await request(app)
+        .get('/api/dashboard/student')
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      // Expired survey should not be counted as available or pending
+      expect(res.body.data.summary.available_surveys_count).toBe(1);
+      expect(res.body.data.summary.pending_surveys_count).toBe(1);
+      expect(res.body.data.surveys[1].is_expired).toBe(true);
+      expect(res.body.data.surveys[1].effective_status).toBe('expired');
+    });
   });
 });

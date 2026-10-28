@@ -1,8 +1,10 @@
-# Database – Student Feedback System
+# Database – Campus Feedback
 
-PostgreSQL database for the Student Feedback System. The schema and seed data live in `init.sql`, which runs automatically the first time the database container starts with an empty volume.
+PostgreSQL database for **Campus Feedback**. Schema initialization lives in `init.sql`, which executes automatically the first time the database container starts with an empty named volume. Shared, portable seed datasets live under `database/seeds/dev_seed.json`.
 
-## ERD
+---
+
+## 1. Entity Relationship Diagram (ERD)
 
 ```mermaid
 erDiagram
@@ -35,6 +37,7 @@ erDiagram
         timestamptz created_at
         timestamptz published_at
         timestamptz closed_at
+        timestamptz due_date "nullable"
     }
     questions {
         int id PK
@@ -65,6 +68,7 @@ erDiagram
         int student_id FK
         int survey_id FK "nullable"
         text message
+        int rating "nullable"
         timestamptz created_at
     }
     survey_views {
@@ -75,32 +79,67 @@ erDiagram
     }
 ```
 
-## Tables
+---
 
-| Table | Purpose |
-|---|---|
-| `users` | Accounts and roles (admin / student) |
-| `surveys` | Survey title, description, status and publish/close dates |
-| `questions` | Questions, their types and order |
-| `survey_responses` | A student's attempt and its completion status |
-| `answers` | Answers to each question |
-| `feedback` | General comments sent by students |
-| `survey_views` | Survey views, used to calculate statistics |
+## 2. Table Specifications
 
-## Normalization
+| Table | Purpose | Primary Constraints |
+| :--- | :--- | :--- |
+| `users` | User credentials, profiles, and roles | `PK (id)`, `UNIQUE (email)`, `UNIQUE (username)`, `CHECK (role IN ('admin', 'student'))` |
+| `surveys` | Survey definitions, deadlines, and lifecycle state | `PK (id)`, `FK (created_by)`, `CHECK (status IN ('draft', 'published', 'closed'))` |
+| `questions` | Survey question items and configurations | `PK (id)`, `FK (survey_id ON DELETE CASCADE)`, `CHECK (question_type IN ('rating', 'text', 'multiple_choice'))` |
+| `survey_responses` | Student survey submission attempts | `PK (id)`, `FK (survey_id)`, `FK (student_id)`, `UNIQUE (survey_id, student_id)` |
+| `answers` | Student response to an individual question | `PK (id)`, `FK (response_id ON DELETE CASCADE)`, `FK (question_id ON DELETE CASCADE)`, `UNIQUE (response_id, question_id)` |
+| `feedback` | Direct feedback sent by students | `PK (id)`, `FK (student_id ON DELETE CASCADE)`, `FK (survey_id ON DELETE SET NULL)` |
+| `survey_views` | Audit logs of survey views for conversion analysis | `PK (id)`, `FK (survey_id ON DELETE CASCADE)`, `FK (student_id ON DELETE CASCADE)` |
 
-The schema is designed to satisfy Third Normal Form (3NF), with one deliberate simplification noted below.
+---
 
-**First Normal Form (1NF).** Every column holds a single atomic value and there are no repeating column groups. For example, a student's answers are stored as separate rows in `answers` (one row per question), not as columns like `answer1`, `answer2`, `answer3`.
+## 3. Business Logic & Query Patterns
 
-**Second Normal Form (2NF).** Every table uses a single-column primary key (`id`), so no non-key column can depend on only part of a key. Business rules that involve two columns, such as one attempt per student per survey, are enforced with `UNIQUE (survey_id, student_id)` on `survey_responses` and `UNIQUE (response_id, question_id)` on `answers`.
+### 3.1. Survey Expiration & Lifecycle State
+- The `surveys.status` check constraint restricts status to `draft`, `published`, and `closed`.
+- **Manually Closed Surveys:** Have `status = 'closed'` and `closed_at` set.
+- **Expired Surveys:** Have `status = 'published'` and `due_date < NOW()`. The database preserves `'published'` to respect schema constraints, while the application computes `is_expired: true` and `effective_status: 'expired'`.
+- All response and answer records for expired surveys remain intact for historical metrics.
 
-**Third Normal Form (3NF).** No non-key column depends on another non-key column. Each fact is stored once and referenced by foreign key: a student's name lives only in `users`, a survey's title only in `surveys`, and a question's text only in `questions`. Derived values such as views, completion rate and response counts are not stored; they are calculated from the recorded data by queries.
+### 3.2. 7-Day Dynamic Activity Aggregation
+Activity metrics are computed dynamically over the last 7 calendar days without mock data:
 
-**Deliberate simplification.** The `options` column in `questions` stores the choices of a multiple-choice question as a JSONB array. Strictly, this is a list inside one column. We kept it because the options are only displayed together with their question and are never queried or updated individually, and a separate `question_options` table would add joins without benefit at this project's scale. If full normalization were required, it would be replaced by a `question_options (id, question_id, option_text, position)` table.
+```sql
+WITH days AS (
+  SELECT (CURRENT_DATE - (i || ' day')::interval)::date AS day_date
+  FROM generate_series(6, 0, -1) AS i
+),
+views_agg AS (
+  SELECT viewed_at::date AS day_date, COUNT(*)::int AS count
+  FROM survey_views
+  WHERE viewed_at >= CURRENT_DATE - INTERVAL '6 days'
+  GROUP BY viewed_at::date
+),
+responses_agg AS (
+  SELECT completed_at::date AS day_date, COUNT(*)::int AS count
+  FROM survey_responses
+  WHERE completed_at >= CURRENT_DATE - INTERVAL '6 days' AND status = 'completed'
+  GROUP BY completed_at::date
+)
+SELECT 
+  d.day_date,
+  TO_CHAR(d.day_date, 'Dy') AS weekday_label,
+  TO_CHAR(d.day_date, 'YYYY-MM-DD') AS date_str,
+  COALESCE(v.count, 0) AS views_count,
+  COALESCE(r.count, 0) AS responses_count
+FROM days d
+LEFT JOIN views_agg v ON d.day_date = v.day_date
+LEFT JOIN responses_agg r ON d.day_date = r.day_date
+ORDER BY d.day_date ASC;
+```
 
-## Notes
+---
 
-- `init.sql` runs only when the volume is empty. After editing it, recreate the volume: `docker compose down -v`.
-- Statistics (views, attempts, completion rate) are computed from stored data with queries, not stored.
-- Seed accounts are for development only; change their passwords before real use.
+## 4. Multi-Developer Database Seed Merging
+
+Portable development seeds are maintained in `database/seeds/dev_seed.json`.
+
+- **Exporting Data:** Run `npm --prefix backend run seed:export` to dump local surveys, questions, responses, answers, feedback, views, and users.
+- **Importing & Merging Data:** Run `npm --prefix backend run seed:import` to safely merge records from another developer's seed file. Numeric IDs are remapped into local sequences, foreign keys are preserved, and existing local records are protected from overwrite.

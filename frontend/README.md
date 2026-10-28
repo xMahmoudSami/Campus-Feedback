@@ -1,146 +1,114 @@
-# Student Feedback System – Frontend
+# Campus Feedback – Frontend
 
-Plain HTML / CSS / vanilla JS frontend for a Student Feedback System with **Admin** and **Student** roles. Served by **nginx:alpine**. No frameworks, no build step.
+Modern, responsive web interface for **Campus Feedback**, built with semantic HTML5, modern CSS3, and vanilla ES6+ JavaScript. Served via **nginx:alpine**. Zero dependencies, zero build steps.
 
-## Features
+---
 
-- **Login** – single page; redirects by role
-- **Admin**
-  - Dashboard (stats, recent surveys, latest feedback, activity chart)
-  - Surveys table (View responses / Edit / Publish / Close / Delete with confirm)
-  - Create / Edit survey with dynamic questions (text, multiple choice, rating)
-  - Survey responses + per-question statistics
-  - All student feedback
-- **Student**
-  - Dashboard (available surveys, recent responses)
-  - Browse & start published surveys
-  - Answer questions (text / MC / rating 1–5) with validation
-  - Confirmation page after submit
-  - Send general feedback + list own feedback & responses
-- Modern indigo dashboard UI, responsive sidebar, badges, toasts, loading & empty states
-- Role guards, Bearer token auth, 401 → login, 403 → toast
+## 1. Features & User Experience
 
-## Demo credentials (mock mode)
+### 1.1. Authentication & Role-Based Navigation
+- Single login screen supporting username or email authentication.
+- Automatically routes administrators to `/admin/dashboard.html` and students to `/student/dashboard.html`.
+- Protected routes enforce role checks via `frontend/js/auth.js`. Unauthenticated requests redirect to login; unauthorized attempts surface a notification toast.
 
-| Role    | Email                 | Password   |
-|---------|-----------------------|------------|
-| Admin   | admin@example.com     | admin123   |
-| Student | student@example.com   | student123 |
+### 1.2. Survey Expiration & Lifecycle Experience
+- **Survey Status Badges:**
+  - `Available` (`.badge-published` / green): Published and open for submissions.
+  - `Expired` (`.badge-expired` / `.badge-danger` / red): Published survey whose due date has elapsed.
+  - `Closed` (`.badge-closed` / red): Manually closed by an administrator.
+  - `Completed` (`.badge-completed` / green): Previously completed by the logged-in student.
+  - `Draft` (`.badge-draft` / yellow): Visible only to administrators.
+- **Student Survey Cards:**
+  - Active surveys provide a **Start Survey** button.
+  - Expired and closed surveys display an **Expired** / **Closed** badge and provide a read-only **Preview** button instead of "Start Survey".
+  - If a student completed an expired survey in the past, it displays both `Expired` and `Completed` badges with a "Preview" button to review their answers.
+- **Survey Taking & Read-Only Preview:**
+  - When viewing an expired or closed survey, inputs are disabled (`isReadOnly = true`), form submission is blocked, and a warning banner indicates that the survey deadline has passed.
+- **Admin Survey Management:**
+  - Admins can immediately see whether a published survey is active or expired in the survey table.
 
-## Quick start (static)
+### 1.3. Dynamic Survey Activity Chart (Last 7 Days)
+- Located on the Admin Dashboard.
+- Dynamically displays activity across the last 7 calendar days up to today.
+- Dual-column bar display per calendar day:
+  - **Views (Blue):** Generated from student visits to published surveys (`survey_views`).
+  - **Responses (Purple):** Generated from completed student submissions (`survey_responses`).
+- Displays zero activity baselines for inactive days and places activity under the exact weekday it occurred.
 
-Open `login.html` in a browser, or serve the folder:
+### 1.4. Dynamic KPI Growth Cards
+- **Total Surveys**, **Total Students**, **Total Responses**, and **Completion Rate** cards calculate live percentage change compared to the previous calendar month.
+- Positive change is styled with green accent (`+X% vs. last month`), negative change with red accent (`-X% vs. last month`).
+- **Total Students** accurately reflects registered student accounts in the system (`users` where `role = 'student'`), independent of the latest feedback table.
 
-```bash
-npx serve .
-# or
-python -m http.server 8080
-```
+---
 
-By default `USE_MOCK = true` in `js/api.js` – no backend needed.
+## 2. Directory Structure
 
-## Docker
-
-```bash
-docker build -t sfs-frontend .
-docker run -p 8080:80 sfs-frontend
-```
-
-Open http://localhost:8080
-
-### With backend (docker-compose example)
-
-```yaml
-services:
-  frontend:
-    build: ./student-feedback-frontend
-    ports:
-      - "8080:80"
-    depends_on:
-      - backend
-  backend:
-    # your Express image
-    image: sfs-backend
-    ports:
-      - "5000:5000"
-```
-
-nginx proxies `/api/` → `http://backend:5000/api/`.
-
-## Connect to real API
-
-1. In `js/api.js` set:
-   ```js
-   const USE_MOCK = false;
-   const API_BASE_URL = '/api';   // or 'http://localhost:5000/api'
-   ```
-2. Ensure CORS / same-origin via the nginx proxy when using Docker.
-
-## Project structure
-
-```
-├── index.html              # Redirect by auth
-├── login.html
-├── css/style.css
+```text
+frontend/
+├── index.html              # Role-based landing redirect
+├── login.html              # Authentication page
+├── signup.html             # Optional registration interface
+├── css/
+│   └── style.css           # Complete responsive stylesheet & design system
 ├── js/
-│   ├── api.js              # Only file that knows URLs & shapes; mock data
-│   ├── auth.js             # JWT + role, guards, logout
-│   ├── ui.js               # Toasts, loading, empty, modal, badges
-│   └── pages/
-│       ├── login.js
-│       ├── admin-dashboard.js
-│       ├── admin-surveys.js
+│   ├── api.js              # REST API client & response transformers
+│   ├── auth.js             # JWT storage, role verification & session guards
+│   ├── ui.js               # Badges, toasts, modals, dates, and loaders
+│   └── pages/              # Per-page controllers
 │       ├── admin-create-survey.js
-│       ├── admin-responses.js
+│       ├── admin-dashboard.js
 │       ├── admin-feedback.js
+│       ├── admin-responses.js
+│       ├── admin-surveys.js
+│       ├── login.js
 │       ├── student-dashboard.js
-│       ├── student-surveys.js
+│       ├── student-feedback.js
 │       ├── student-survey.js
-│       └── student-feedback.js
-├── admin/
-│   ├── dashboard.html
-│   ├── surveys.html
+│       └── student-surveys.js
+├── admin/                  # Administrator views
 │   ├── create-survey.html
-│   ├── responses.html
-│   └── feedback.html
-├── student/
 │   ├── dashboard.html
-│   ├── surveys.html
-│   ├── survey.html
+│   ├── feedback.html
+│   ├── responses.html
+│   └── surveys.html
+├── student/                # Student views
 │   ├── confirmation.html
-│   └── feedback.html
-├── Dockerfile
-├── nginx.conf
-└── README.md
+│   ├── dashboard.html
+│   ├── feedback.html
+│   ├── survey.html
+│   └── surveys.html
+├── components/
+│   └── sidebar.html        # Reusable navigation sidebar component
+├── Dockerfile              # Nginx Alpine container definition
+└── nginx.conf              # Reverse proxy configuration (/api/ -> backend)
 ```
 
-## API endpoints expected
+---
 
-| Method | Path | Notes |
-|--------|------|-------|
-| POST | /auth/login | `{ email, password }` → `{ token, user }` |
-| GET | /auth/me | Current user |
-| POST | /auth/logout | |
-| GET | /dashboard/admin | Stats, recent surveys, feedback |
-| GET | /dashboard/student | Stats, available surveys, responses |
-| GET | /surveys | List |
-| GET | /surveys/:id | Detail + questions |
-| POST | /surveys | Create |
-| PATCH | /surveys/:id | Update |
-| PATCH | /surveys/:id/status | `{ status }` |
-| DELETE | /surveys/:id | |
-| POST | /surveys/:id/responses | `{ answers: [{ questionId, value }] }` |
-| GET | /surveys/:id/responses | Responses + statistics |
-| GET | /responses/mine | Student's responses |
-| POST | /feedback | `{ message, rating? }` |
-| GET | /feedback | All feedback |
-| GET | /health | |
-| GET | /health/db | |
+## 3. Demo Accounts
 
-All protected routes require `Authorization: Bearer <token>`.
+| Role | Username / Email | Password | Intended Portal |
+| :--- | :--- | :--- | :--- |
+| **Admin** | `admin` / `admin@example.com` | `admin123` | `/admin/dashboard.html` |
+| **Student** | `student` / `student@example.com` | `student123` | `/student/dashboard.html` |
 
-## Notes
+---
 
-- User-supplied data is always set via `textContent` (never `innerHTML`).
-- Stats cards are populated only from dashboard endpoints.
-- Mock data mirrors the design shown in the reference mockups.
+## 4. Local Deployment & Running
+
+### Using Docker Compose (Recommended)
+
+From the project root:
+
+```bash
+docker compose up -d frontend
+```
+
+Access the interface at [http://localhost:8080](http://localhost:8080).
+
+### Static Server (Standalone)
+
+```bash
+npx serve frontend -p 8080
+```

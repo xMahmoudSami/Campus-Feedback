@@ -4,6 +4,7 @@ const {
   ValidationError,
   ConflictError,
 } = require('../middleware/errorHandler');
+const { isSurveyExpired } = require('../utils/dateUtils');
 
 /**
  * Submits a survey response and answer set inside a database transaction.
@@ -12,8 +13,9 @@ const {
  * @param {number} surveyId
  * @param {number} studentId
  * @param {Array<{ question_id: number, answer_text?: string, rating?: number, rating_value?: number }>} answers
+ * @param {string|Date|null} [clientDate=null]
  */
-async function submitResponse(surveyId, studentId, answers) {
+async function submitResponse(surveyId, studentId, answers, clientDate = null) {
   // 1. Fetch survey details and verify status
   const surveyRes = await db.query(
     `SELECT id, title, status FROM surveys WHERE id = $1`,
@@ -28,6 +30,20 @@ async function submitResponse(surveyId, studentId, answers) {
   if (survey.status !== 'published') {
     throw new ValidationError(
       `Cannot submit response. Survey is currently '${survey.status}'. Submissions are only accepted for 'published' surveys.`
+    );
+  }
+
+  // 1b. Fetch due_date to verify survey is not expired
+  const dueRes = await db.query(
+    `SELECT due_date FROM surveys WHERE id = $1`,
+    [surveyId]
+  );
+  const dueDate = dueRes.rows[0]?.due_date;
+
+  const refDate = clientDate ? new Date(clientDate) : new Date();
+  if (isSurveyExpired(dueDate, refDate)) {
+    throw new ValidationError(
+      'Cannot submit response. This survey has expired past its due date and is no longer accepting submissions.'
     );
   }
 

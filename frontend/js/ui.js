@@ -78,6 +78,24 @@ const UI = {
     container.appendChild(wrap);
   },
 
+  // ─── Survey Expiration ────────────────────────────────────
+  isSurveyExpired(dueDate) {
+    if (!dueDate) return false;
+    const due = new Date(dueDate);
+    if (isNaN(due.getTime())) return false;
+    const now = new Date();
+    let deadline = due.getTime();
+    const isMidnight =
+      due.getUTCHours() === 0 &&
+      due.getUTCMinutes() === 0 &&
+      due.getUTCSeconds() === 0 &&
+      due.getUTCMilliseconds() === 0;
+    if (isMidnight) {
+      deadline += 86399999;
+    }
+    return now.getTime() > deadline;
+  },
+
   // ─── Status badge ─────────────────────────────────────────
   statusBadge(status) {
     const span = document.createElement('span');
@@ -93,6 +111,9 @@ const UI = {
     } else if (s === 'closed') {
       cls = 'badge-closed';
       label = 'Closed';
+    } else if (s === 'expired') {
+      cls = 'badge-danger badge-expired';
+      label = 'Expired';
     }
     span.className = `badge ${cls}`;
     span.textContent = label;
@@ -103,6 +124,11 @@ const UI = {
   formatDate(iso) {
     if (!iso) return '—';
     try {
+      if (typeof iso === 'string' && /^\d{4}-\d{2}-\d{2}/.test(iso)) {
+        const [year, month, day] = iso.substring(0, 10).split('-').map(Number);
+        const d = new Date(year, month - 1, day);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
       const d = new Date(iso);
       return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     } catch {

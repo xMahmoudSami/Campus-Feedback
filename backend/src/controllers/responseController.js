@@ -9,8 +9,9 @@ async function submitResponse(req, res, next) {
     const surveyId = req.params.id;
     const studentId = req.user.id;
     const { answers } = req.body;
+    const clientDate = req.headers['x-client-time'] || req.body?.client_date || null;
 
-    const result = await responseService.submitResponse(surveyId, studentId, answers);
+    const result = await responseService.submitResponse(surveyId, studentId, answers, clientDate);
     res.status(201).json({
       success: true,
       message: result.message,

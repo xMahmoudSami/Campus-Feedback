@@ -98,6 +98,7 @@ async function apiFetch(path, options = {}) {
   const token = localStorage.getItem('token');
   const headers = {
     'Content-Type': 'application/json',
+    'x-client-time': new Date().toISOString(),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
@@ -459,24 +460,32 @@ async function getAdminDashboard() {
     const sum = raw.surveys_metrics.reduce((acc, s) => acc + (s.completion_rate_percent || 0), 0);
     avgCompletionRate = Math.round(sum / raw.surveys_metrics.length);
   }
+  const ch = raw.changes || {};
   return {
     stats: {
       totalSurveys,
       totalStudents,
       totalResponses,
       completionRate: avgCompletionRate,
-      surveysChange: 0,
-      studentsChange: 0,
-      responsesChange: 0,
-      completionChange: 0,
+      surveysChange: ch.surveys_change !== undefined ? ch.surveys_change : 0,
+      studentsChange: ch.students_change !== undefined ? ch.students_change : 0,
+      responsesChange: ch.responses_change !== undefined ? ch.responses_change : 0,
+      completionChange: ch.completion_change !== undefined ? ch.completion_change : 0,
     },
-    recentSurveys: (raw.surveys_metrics || []).slice(0, 5).map((s) => ({
-      id: s.id,
-      title: s.title,
-      status: s.status,
-      responseCount: s.completed_responses ?? s.response_count ?? 0,
-      completionPercent: Math.round(s.completion_rate_percent || 0),
-    })),
+    recentSurveys: (raw.surveys_metrics || []).slice(0, 5).map((s) => {
+      const dueDate = s.due_date ?? s.dueDate ?? null;
+      const isExpired = Boolean(s.is_expired ?? s.isExpired ?? (typeof UI !== 'undefined' ? UI.isSurveyExpired(dueDate) : false));
+      return {
+        id: s.id,
+        title: s.title,
+        status: s.status,
+        dueDate,
+        isExpired,
+        effectiveStatus: s.effective_status || (s.status === 'published' && isExpired ? 'expired' : s.status),
+        responseCount: s.completed_responses ?? s.response_count ?? 0,
+        completionPercent: Math.round(s.completion_rate_percent || 0),
+      };
+    }),
     latestFeedback: (raw.recent_activity?.recent_feedback || []).slice(0, 5).map((f) => ({
       id: f.feedback_id || f.id,
       studentName: f.student_full_name || f.student_username || f.student_email || 'Student',
@@ -486,7 +495,7 @@ async function getAdminDashboard() {
       comment: f.message,
       date: f.created_at ? new Date(f.created_at).toLocaleDateString() : '',
     })),
-    activity: {
+    activity: raw.activity || {
       labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
       views: [0, 0, 0, 0, 0, 0, raw.overview?.views_count || 0],
       responses: [0, 0, 0, 0, 0, 0, totalResponses],
@@ -522,7 +531,10 @@ async function getStudentDashboard() {
   const raw = res.data || res;
   const allSurveys = raw.surveys || [];
   const available = allSurveys
-    .filter((s) => (s.status === 'published' || !s.status) && !s.is_completed)
+    .filter((s) => {
+      const isExp = Boolean(s.is_expired ?? s.isExpired ?? (typeof UI !== 'undefined' ? UI.isSurveyExpired(s.due_date ?? s.dueDate) : false));
+      return (s.status === 'published' || !s.status) && !s.is_completed && !isExp;
+    })
     .map((s) => ({
       id: s.id,
       title: s.title,
@@ -530,6 +542,7 @@ async function getStudentDashboard() {
       questionCount: s.question_count || 0,
       dueDate: s.due_date ?? s.dueDate ?? null,
       status: 'Available',
+      isExpired: false,
     }));
   const completed = allSurveys
     .filter((s) => s.is_completed)
@@ -576,14 +589,20 @@ async function getSurveys() {
   }
   const res = await apiFetch('/surveys');
   const list = res.data?.surveys || res.surveys || (Array.isArray(res) ? res : []);
-  return list.map((s) => ({
-    ...s,
-    dueDate: s.due_date ?? s.dueDate ?? null,
-    hasSubmitted: Boolean(s.has_submitted ?? s.hasSubmitted ?? false),
-    questionCount: s.question_count ?? s.questionCount ?? 0,
-    responseCount: s.response_count ?? s.responseCount ?? 0,
-    updatedAt: s.published_at || s.created_at,
-  }));
+  return list.map((s) => {
+    const dueDate = s.due_date ?? s.dueDate ?? null;
+    const isExpired = Boolean(s.is_expired ?? s.isExpired ?? (typeof UI !== 'undefined' ? UI.isSurveyExpired(dueDate) : false));
+    return {
+      ...s,
+      dueDate,
+      isExpired,
+      effectiveStatus: s.effective_status || (s.status === 'published' && isExpired ? 'expired' : s.status),
+      hasSubmitted: Boolean(s.has_submitted ?? s.hasSubmitted ?? false),
+      questionCount: s.question_count ?? s.questionCount ?? 0,
+      responseCount: s.response_count ?? s.responseCount ?? 0,
+      updatedAt: s.published_at || s.created_at,
+    };
+  });
 }
 
 async function getSurvey(id) {
@@ -600,9 +619,13 @@ async function getSurvey(id) {
   }
   const res = await apiFetch(`/surveys/${id}`);
   const survey = res.data?.survey || res.survey || res;
+  const dueDate = survey.due_date ?? survey.dueDate ?? null;
+  const isExpired = Boolean(survey.is_expired ?? survey.isExpired ?? (typeof UI !== 'undefined' ? UI.isSurveyExpired(dueDate) : false));
   return {
     ...survey,
-    dueDate: survey.due_date ?? survey.dueDate ?? null,
+    dueDate,
+    isExpired,
+    effectiveStatus: survey.effective_status || (survey.status === 'published' && isExpired ? 'expired' : survey.status),
     hasSubmitted: Boolean(survey.has_submitted ?? survey.hasSubmitted ?? false),
     myResponse: survey.my_response || survey.myResponse || null,
     questions: (survey.questions || []).map((q) => ({

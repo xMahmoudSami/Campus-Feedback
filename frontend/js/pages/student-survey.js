@@ -28,8 +28,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     survey = await API.getSurvey(surveyId);
 
     const isClosed = survey.status === 'closed';
+    const isExpired = Boolean(survey.isExpired || survey.is_expired || (typeof UI !== 'undefined' && UI.isSurveyExpired(survey.dueDate)));
     const hasSubmitted = Boolean(survey.hasSubmitted);
-    isReadOnly = requestedPreview || isClosed || hasSubmitted;
+    isReadOnly = requestedPreview || isClosed || isExpired || hasSubmitted;
 
     // Students cannot view draft surveys
     if (survey.status === 'draft') {
@@ -83,12 +84,15 @@ function renderSurvey(container, readOnly, userAnswersMap = {}) {
 
   const statusWrap = document.createElement('div');
   statusWrap.className = 'd-flex align-center gap-1';
+  const isExpired = Boolean(survey.isExpired || survey.is_expired || (typeof UI !== 'undefined' && UI.isSurveyExpired(survey.dueDate)));
   if (survey.status === 'closed') {
     statusWrap.appendChild(UI.statusBadge('closed'));
+  } else if (isExpired) {
+    statusWrap.appendChild(UI.statusBadge('expired'));
   }
   if (survey.hasSubmitted) {
     statusWrap.appendChild(UI.statusBadge('completed'));
-  } else if (survey.status === 'published') {
+  } else if (survey.status === 'published' && !isExpired) {
     statusWrap.appendChild(UI.statusBadge('available'));
   }
   titleRow.appendChild(statusWrap);
@@ -120,6 +124,15 @@ function renderSurvey(container, readOnly, userAnswersMap = {}) {
         <div>
           <strong>Survey Closed (Read-Only Preview)</strong>
           <div>This survey is closed and is no longer accepting new responses. You are viewing it in read-only mode.</div>
+        </div>
+      `;
+    } else if (isExpired) {
+      alertDiv.className = 'alert alert-warning';
+      alertDiv.innerHTML = `
+        <div class="alert-icon">⏰</div>
+        <div>
+          <strong>Survey Expired (Read-Only Preview)</strong>
+          <div>This survey expired on ${UI.formatDate(survey.dueDate)} and is no longer accepting responses. You are viewing it in read-only mode.</div>
         </div>
       `;
     } else {
@@ -297,7 +310,11 @@ function renderSurvey(container, readOnly, userAnswersMap = {}) {
 }
 
 async function handleSubmit() {
-  if (isReadOnly) return;
+  const isExpired = Boolean(survey?.isExpired || survey?.is_expired || (typeof UI !== 'undefined' && UI.isSurveyExpired(survey?.dueDate)));
+  if (isReadOnly || isExpired || survey?.status === 'closed') {
+    UI.toast('This survey is no longer accepting responses.', 'warning');
+    return;
+  }
 
   // Validate required
   for (const q of survey.questions || []) {

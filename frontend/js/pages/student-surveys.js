@@ -56,6 +56,7 @@ function renderList(container, surveys) {
     actions.className = 'survey-item-actions';
 
     const isClosed = s.status === 'closed';
+    const isExpired = Boolean(s.isExpired || s.is_expired || (typeof UI !== 'undefined' && UI.isSurveyExpired(s.dueDate)));
     const hasSubmitted = Boolean(s.hasSubmitted);
 
     if (isClosed) {
@@ -69,7 +70,17 @@ function renderList(container, surveys) {
       previewBtn.href = appUrl(`student/survey.html?id=${s.id}&mode=preview`);
       actions.appendChild(previewBtn);
     } else if (hasSubmitted) {
+      if (isExpired) {
+        actions.appendChild(UI.statusBadge('expired'));
+      }
       actions.appendChild(UI.statusBadge('completed'));
+      const previewBtn = document.createElement('a');
+      previewBtn.className = 'btn btn-secondary';
+      previewBtn.textContent = 'Preview';
+      previewBtn.href = appUrl(`student/survey.html?id=${s.id}&mode=preview`);
+      actions.appendChild(previewBtn);
+    } else if (isExpired) {
+      actions.appendChild(UI.statusBadge('expired'));
       const previewBtn = document.createElement('a');
       previewBtn.className = 'btn btn-secondary';
       previewBtn.textContent = 'Preview';

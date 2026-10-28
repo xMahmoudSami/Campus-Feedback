@@ -54,8 +54,11 @@ function renderStats(container, stats) {
     value.textContent = String(item.value);
 
     const change = document.createElement('div');
-    change.className = 'stat-card-change up';
-    change.textContent = `+${item.change}% vs. last month`;
+    const ch = Number(item.change) || 0;
+    const isUp = ch >= 0;
+    change.className = `stat-card-change ${isUp ? 'up' : 'down'}`;
+    const sign = ch > 0 ? '+' : '';
+    change.textContent = `${sign}${ch}% vs. last month`;
 
     card.appendChild(accent);
     card.appendChild(label);
@@ -92,7 +95,12 @@ function renderRecentSurveys(container, surveys) {
 
     const actions = document.createElement('div');
     actions.className = 'survey-item-actions';
-    actions.appendChild(UI.statusBadge(s.status));
+    const isExpired = Boolean(s.isExpired || s.is_expired);
+    if (s.status === 'published' && isExpired) {
+      actions.appendChild(UI.statusBadge('expired'));
+    } else {
+      actions.appendChild(UI.statusBadge(s.status));
+    }
 
     item.appendChild(info);
     item.appendChild(actions);
@@ -169,25 +177,57 @@ function renderChart(container, activity) {
   if (!container || !activity) return;
   container.textContent = '';
 
-  const max = Math.max(...(activity.views || [1]), ...(activity.responses || [1]), 1);
+  const views = activity.views || [];
+  const responses = activity.responses || [];
+  const labels = activity.labels || [];
+  const dates = activity.dates || [];
+
+  const maxVal = Math.max(...views, ...responses, 1);
+
+  const legend = document.createElement('div');
+  legend.className = 'chart-legend';
+  legend.innerHTML = `
+    <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#3b82f6;"></span>Views</span>
+    <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#8b5cf6;"></span>Responses</span>
+  `;
+  container.appendChild(legend);
+
   const chart = document.createElement('div');
   chart.className = 'chart-placeholder';
 
-  (activity.views || []).forEach((v) => {
-    const bar = document.createElement('div');
-    bar.className = 'chart-bar';
-    bar.style.height = Math.max(8, (v / max) * 160) + 'px';
-    bar.title = String(v);
-    chart.appendChild(bar);
+  labels.forEach((label, i) => {
+    const v = views[i] || 0;
+    const r = responses[i] || 0;
+    const dateStr = dates[i] ? ` (${dates[i]})` : '';
+
+    const slot = document.createElement('div');
+    slot.className = 'chart-day-slot';
+
+    const barViews = document.createElement('div');
+    barViews.className = 'chart-bar chart-bar-views';
+    barViews.style.height = Math.max(6, Math.round((v / maxVal) * 160)) + 'px';
+    barViews.title = `${label}${dateStr}: ${v} views`;
+
+    const barResp = document.createElement('div');
+    barResp.className = 'chart-bar chart-bar-responses';
+    barResp.style.height = Math.max(6, Math.round((r / maxVal) * 160)) + 'px';
+    barResp.title = `${label}${dateStr}: ${r} responses`;
+
+    slot.appendChild(barViews);
+    slot.appendChild(barResp);
+    chart.appendChild(slot);
   });
   container.appendChild(chart);
 
-  const labels = document.createElement('div');
-  labels.className = 'chart-labels';
-  (activity.labels || []).forEach((l) => {
+  const labelsDiv = document.createElement('div');
+  labelsDiv.className = 'chart-labels';
+  labels.forEach((l, i) => {
     const span = document.createElement('span');
     span.textContent = l;
-    labels.appendChild(span);
+    if (dates[i]) {
+      span.title = dates[i];
+    }
+    labelsDiv.appendChild(span);
   });
-  container.appendChild(labels);
+  container.appendChild(labelsDiv);
 }

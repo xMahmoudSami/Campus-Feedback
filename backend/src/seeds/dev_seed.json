@@ -1,151 +1,59 @@
 {
   "version": "2.1",
   "project": "Campus Feedback",
-  "exported_at": "2026-10-28T21:58:30.667Z",
+  "exported_at": "2026-10-28T22:36:37.299Z",
   "description": "Approved complete development seed dataset for Campus Feedback System",
   "users": [
     {
-      "uuid": "3283d061-cae5-4573-a0b1-d9954143c3bc",
-      "source_id": 2,
-      "full_name": "System Administrator",
+      "uuid": "5a294c67-1223-412e-ae01-ae8c04ade88b",
+      "source_id": 1,
       "email": "admin@example.com",
       "username": "admin",
       "role": "admin",
-      "created_at": "2026-10-28T17:37:11.739Z"
+      "created_at": "2026-10-28T22:36:37.298Z"
     },
     {
-      "uuid": "80eedff3-9a57-45ec-a787-3584090a691b",
-      "source_id": 3,
-      "full_name": "Demo Student",
+      "uuid": "2ccd6ddb-edae-41d3-b59c-263fddc2256e",
+      "source_id": 2,
       "email": "student@example.com",
       "username": "student",
       "role": "student",
-      "created_at": "2026-10-28T17:37:11.739Z"
+      "created_at": "2026-10-28T22:36:37.298Z"
     },
     {
-      "uuid": "b2fed484-a4fd-4975-8c8a-53619ad8bd94",
+      "uuid": "adf44c04-c4e4-4828-8d37-ba1b2d52ca43",
       "source_id": 5,
-      "full_name": "Mahmoud Sami",
-      "email": "mahmoudsami290@gmail.com",
-      "username": "mahmoudsami290",
+      "full_name": "Student Tester",
+      "email": "tester@example.com",
+      "username": "student_tester",
       "role": "student",
-      "created_at": "2026-10-28T19:55:30.664Z"
+      "created_at": "2026-10-28T22:36:37.298Z"
     }
   ],
   "surveys": [
     {
-      "uuid": "46124920-9abc-461b-a765-c97a41f2f3ff",
-      "source_id": 1,
-      "title": "Course Evaluation 2026",
-      "description": "Gathering feedback on the course we covered in 2026",
+      "uuid": "0c7ba73e-b03a-4639-91cf-718df57f69ff",
+      "source_id": 10,
+      "title": "Full Stack Engineering Survey",
+      "description": "Testing responses",
       "status": "published",
-      "due_date": "2026-10-28T00:00:00.000Z",
-      "created_at": "2026-10-28T17:50:27.577Z",
-      "published_at": "2026-10-28T17:50:27.577Z",
+      "due_date": null,
+      "created_at": "2026-10-28T22:36:37.298Z",
+      "published_at": null,
       "closed_at": null,
-      "created_by": 2,
+      "created_by": 1,
       "creator_username": "admin",
       "creator_role": "admin",
-      "creator_uuid": "3283d061-cae5-4573-a0b1-d9954143c3bc"
-    },
-    {
-      "uuid": "f4bdeaf3-69bc-4352-b003-f3b31bf134f8",
-      "source_id": 3,
-      "title": "Feedback System",
-      "description": "This is a feedback system.",
-      "status": "published",
-      "due_date": "2026-10-28T00:00:00.000Z",
-      "created_at": "2026-10-28T19:56:40.018Z",
-      "published_at": "2026-10-28T19:56:40.018Z",
-      "closed_at": null,
-      "created_by": 2,
-      "creator_username": "admin",
-      "creator_role": "admin",
-      "creator_uuid": "3283d061-cae5-4573-a0b1-d9954143c3bc"
-    },
-    {
-      "uuid": "3efb178d-e188-4c0c-bf07-32803c6fa58b",
-      "source_id": 4,
-      "title": "Campus Feedback",
-      "description": "Hello from Campus Feedback System",
-      "status": "published",
-      "due_date": "2026-10-28T00:00:00.000Z",
-      "created_at": "2026-10-28T20:21:09.291Z",
-      "published_at": "2026-10-28T20:21:09.291Z",
-      "closed_at": null,
-      "created_by": 2,
-      "creator_username": "admin",
-      "creator_role": "admin",
-      "creator_uuid": "3283d061-cae5-4573-a0b1-d9954143c3bc"
+      "creator_uuid": "5a294c67-1223-412e-ae01-ae8c04ade88b"
     }
   ],
   "questions": [
     {
-      "uuid": "64286acc-5e27-449e-8626-43aa6a4ec59e",
-      "source_id": 1,
-      "source_survey_id": 1,
-      "survey_uuid": "46124920-9abc-461b-a765-c97a41f2f3ff",
-      "question_text": "What do you think of the course?",
-      "question_type": "text",
-      "options": null,
-      "position": 1,
-      "is_required": true
-    },
-    {
-      "uuid": "40721700-8c39-4930-8a8e-59bdfdcbb7a9",
-      "source_id": 2,
-      "source_survey_id": 1,
-      "survey_uuid": "46124920-9abc-461b-a765-c97a41f2f3ff",
-      "question_text": "What is the most thing you like?",
-      "question_type": "multiple_choice",
-      "options": [
-        "Content",
-        "Theoretical ",
-        "Practical",
-        "Other (Answer next question)"
-      ],
-      "position": 2,
-      "is_required": true
-    },
-    {
-      "uuid": "82ea5e94-c8da-4ea7-b3b1-6fcb53345aa9",
-      "source_id": 3,
-      "source_survey_id": 1,
-      "survey_uuid": "46124920-9abc-461b-a765-c97a41f2f3ff",
-      "question_text": "What did you like?",
-      "question_type": "text",
-      "options": null,
-      "position": 3,
-      "is_required": false
-    },
-    {
-      "uuid": "8d2ef4ad-a4a7-413d-a58d-f87add52132e",
-      "source_id": 4,
-      "source_survey_id": 1,
-      "survey_uuid": "46124920-9abc-461b-a765-c97a41f2f3ff",
-      "question_text": "How much do you rate this course on a scale from 1 to 5?",
-      "question_type": "rating",
-      "options": null,
-      "position": 4,
-      "is_required": true
-    },
-    {
-      "uuid": "da5ec443-1ad5-43ef-b216-df72177eeee1",
-      "source_id": 6,
-      "source_survey_id": 3,
-      "survey_uuid": "f4bdeaf3-69bc-4352-b003-f3b31bf134f8",
-      "question_text": "How you doing?",
-      "question_type": "text",
-      "options": null,
-      "position": 1,
-      "is_required": true
-    },
-    {
-      "uuid": "377d4ad2-bc3a-43ba-9dac-da3c9ced5099",
-      "source_id": 7,
-      "source_survey_id": 4,
-      "survey_uuid": "3efb178d-e188-4c0c-bf07-32803c6fa58b",
-      "question_text": "Rate our System",
+      "uuid": "8d28f392-dd4e-4872-bf8f-8f469c804b6d",
+      "source_id": 50,
+      "source_survey_id": 10,
+      "survey_uuid": "0c7ba73e-b03a-4639-91cf-718df57f69ff",
+      "question_text": "Rate the backend architecture",
       "question_type": "rating",
       "options": null,
       "position": 1,
@@ -154,372 +62,40 @@
   ],
   "responses": [
     {
-      "uuid": "ed751ce6-dd72-404d-8215-c25dbedc3467",
-      "source_id": 1,
-      "source_survey_id": 1,
-      "survey_uuid": "46124920-9abc-461b-a765-c97a41f2f3ff",
-      "source_student_id": 3,
-      "student_username": "student",
-      "status": "completed",
-      "started_at": "2026-10-28T17:51:12.020Z",
-      "completed_at": "2026-10-28T17:51:12.020Z",
-      "student_uuid": "80eedff3-9a57-45ec-a787-3584090a691b"
-    },
-    {
-      "uuid": "1e37a672-8b53-46c2-ade3-610d22a71324",
-      "source_id": 2,
-      "source_survey_id": 3,
-      "survey_uuid": "f4bdeaf3-69bc-4352-b003-f3b31bf134f8",
-      "source_student_id": 3,
-      "student_username": "student",
-      "status": "completed",
-      "started_at": "2026-10-28T19:56:53.155Z",
-      "completed_at": "2026-10-28T19:56:53.155Z",
-      "student_uuid": "80eedff3-9a57-45ec-a787-3584090a691b"
-    },
-    {
-      "uuid": "4629425f-e4e6-42e5-84e5-f3af45dc7628",
-      "source_id": 3,
-      "source_survey_id": 3,
-      "survey_uuid": "f4bdeaf3-69bc-4352-b003-f3b31bf134f8",
+      "uuid": "8139dbc9-555f-492b-9a66-8939daf5f55c",
+      "source_id": 70,
+      "source_survey_id": 10,
+      "survey_uuid": "0c7ba73e-b03a-4639-91cf-718df57f69ff",
       "source_student_id": 5,
-      "student_username": "mahmoudsami290",
+      "student_username": "student_tester",
       "status": "completed",
-      "started_at": "2026-10-28T19:57:11.630Z",
-      "completed_at": "2026-10-28T19:57:11.630Z",
-      "student_uuid": "b2fed484-a4fd-4975-8c8a-53619ad8bd94"
-    },
-    {
-      "uuid": "972c6996-1184-4f0a-936f-893785fc30fe",
-      "source_id": 4,
-      "source_survey_id": 4,
-      "survey_uuid": "3efb178d-e188-4c0c-bf07-32803c6fa58b",
-      "source_student_id": 3,
-      "student_username": "student",
-      "status": "completed",
-      "started_at": "2026-10-28T20:21:23.014Z",
-      "completed_at": "2026-10-28T20:21:23.014Z",
-      "student_uuid": "80eedff3-9a57-45ec-a787-3584090a691b"
-    },
-    {
-      "uuid": "30786d35-c240-4df8-be79-2c16d7e051d1",
-      "source_id": 5,
-      "source_survey_id": 4,
-      "survey_uuid": "3efb178d-e188-4c0c-bf07-32803c6fa58b",
-      "source_student_id": 5,
-      "student_username": "mahmoudsami290",
-      "status": "completed",
-      "started_at": "2026-10-28T21:11:01.312Z",
-      "completed_at": "2026-10-28T21:11:01.312Z",
-      "student_uuid": "b2fed484-a4fd-4975-8c8a-53619ad8bd94"
+      "started_at": "2026-10-28T22:36:37.297Z",
+      "completed_at": "2026-10-28T22:36:37.297Z",
+      "student_uuid": "adf44c04-c4e4-4828-8d37-ba1b2d52ca43"
     }
   ],
   "answers": [
     {
-      "uuid": "12b4c21f-c5a9-4cea-8b90-8b07c70e005a",
-      "source_id": 1,
-      "source_response_id": 1,
-      "response_uuid": "ed751ce6-dd72-404d-8215-c25dbedc3467",
-      "source_question_id": 1,
-      "question_uuid": "64286acc-5e27-449e-8626-43aa6a4ec59e",
-      "answer_text": "It was a pretty good experience.",
-      "rating": null
-    },
-    {
-      "uuid": "abb80cf7-c02a-410f-8eb0-4b0097ecb269",
-      "source_id": 2,
-      "source_response_id": 1,
-      "response_uuid": "ed751ce6-dd72-404d-8215-c25dbedc3467",
-      "source_question_id": 2,
-      "question_uuid": "40721700-8c39-4930-8a8e-59bdfdcbb7a9",
-      "answer_text": "Other (Answer next question)",
-      "rating": null
-    },
-    {
-      "uuid": "742b9282-2d0c-417c-971b-659e302cae40",
-      "source_id": 3,
-      "source_response_id": 1,
-      "response_uuid": "ed751ce6-dd72-404d-8215-c25dbedc3467",
-      "source_question_id": 3,
-      "question_uuid": "82ea5e94-c8da-4ea7-b3b1-6fcb53345aa9",
-      "answer_text": "How the professor clarify the content.",
-      "rating": null
-    },
-    {
-      "uuid": "ea5cc83d-8e15-495f-8fbc-0bb60e7a411b",
-      "source_id": 4,
-      "source_response_id": 1,
-      "response_uuid": "ed751ce6-dd72-404d-8215-c25dbedc3467",
-      "source_question_id": 4,
-      "question_uuid": "8d2ef4ad-a4a7-413d-a58d-f87add52132e",
-      "answer_text": "5",
-      "rating": 5
-    },
-    {
-      "uuid": "5c4eee51-a750-466a-9be8-0159e5e996ec",
-      "source_id": 5,
-      "source_response_id": 2,
-      "response_uuid": "1e37a672-8b53-46c2-ade3-610d22a71324",
-      "source_question_id": 6,
-      "question_uuid": "da5ec443-1ad5-43ef-b216-df72177eeee1",
-      "answer_text": "Good",
-      "rating": null
-    },
-    {
-      "uuid": "45bff29b-4a25-497e-a3a3-13f41a5cf35d",
-      "source_id": 6,
-      "source_response_id": 3,
-      "response_uuid": "4629425f-e4e6-42e5-84e5-f3af45dc7628",
-      "source_question_id": 6,
-      "question_uuid": "da5ec443-1ad5-43ef-b216-df72177eeee1",
-      "answer_text": "Cool",
-      "rating": null
-    },
-    {
-      "uuid": "1bdd8664-a0b8-4d9f-ae83-7f8fa656cd62",
-      "source_id": 7,
-      "source_response_id": 4,
-      "response_uuid": "972c6996-1184-4f0a-936f-893785fc30fe",
-      "source_question_id": 7,
-      "question_uuid": "377d4ad2-bc3a-43ba-9dac-da3c9ced5099",
-      "answer_text": "5",
-      "rating": 5
-    },
-    {
-      "uuid": "0ce6b6cd-c002-4f5e-b6e8-35c99b74de7c",
-      "source_id": 8,
-      "source_response_id": 5,
-      "response_uuid": "30786d35-c240-4df8-be79-2c16d7e051d1",
-      "source_question_id": 7,
-      "question_uuid": "377d4ad2-bc3a-43ba-9dac-da3c9ced5099",
+      "uuid": "8585a55d-5036-4563-8008-168ad856a3fe",
+      "source_id": 90,
+      "source_response_id": 70,
+      "response_uuid": "8139dbc9-555f-492b-9a66-8939daf5f55c",
+      "source_question_id": 50,
+      "question_uuid": "8d28f392-dd4e-4872-bf8f-8f469c804b6d",
       "answer_text": "5",
       "rating": 5
     }
   ],
-  "feedback": [
-    {
-      "uuid": "cfb09ae9-8476-4503-8bcd-12aae11be92d",
-      "source_id": 1,
-      "source_student_id": 3,
-      "student_username": "student",
-      "source_survey_id": null,
-      "survey_uuid": null,
-      "message": "I love this system.",
-      "rating": null,
-      "created_at": "2026-10-28T17:51:23.681Z",
-      "student_uuid": "80eedff3-9a57-45ec-a787-3584090a691b"
-    },
-    {
-      "uuid": "87787306-0c4f-46ce-8357-95e6a8fd152c",
-      "source_id": 2,
-      "source_student_id": 3,
-      "student_username": "student",
-      "source_survey_id": null,
-      "survey_uuid": null,
-      "message": "I love it.",
-      "rating": null,
-      "created_at": "2026-10-28T17:52:37.797Z",
-      "student_uuid": "80eedff3-9a57-45ec-a787-3584090a691b"
-    },
-    {
-      "uuid": "02eb2594-d4bc-449f-9001-383bfc935656",
-      "source_id": 3,
-      "source_student_id": 3,
-      "student_username": "student",
-      "source_survey_id": null,
-      "survey_uuid": null,
-      "message": "Awesome platform! Very helpful.",
-      "rating": 5,
-      "created_at": "2026-10-28T18:00:40.865Z",
-      "student_uuid": "80eedff3-9a57-45ec-a787-3584090a691b"
-    },
-    {
-      "uuid": "cc19fe91-2881-4e72-a9b3-eb36e4b32154",
-      "source_id": 4,
-      "source_student_id": 3,
-      "student_username": "student",
-      "source_survey_id": null,
-      "survey_uuid": null,
-      "message": "Awesome!1",
-      "rating": 5,
-      "created_at": "2026-10-28T19:54:27.753Z",
-      "student_uuid": "80eedff3-9a57-45ec-a787-3584090a691b"
-    },
-    {
-      "uuid": "f90a4e11-c66d-40e5-9692-85cff0c9c704",
-      "source_id": 5,
-      "source_student_id": 3,
-      "student_username": "student",
-      "source_survey_id": null,
-      "survey_uuid": null,
-      "message": "Amazing System!",
-      "rating": 5,
-      "created_at": "2026-10-28T19:55:48.805Z",
-      "student_uuid": "80eedff3-9a57-45ec-a787-3584090a691b"
-    }
-  ],
+  "feedback": [],
   "survey_views": [
     {
       "source_id": 1,
-      "source_survey_id": 1,
-      "survey_uuid": "46124920-9abc-461b-a765-c97a41f2f3ff",
-      "source_student_id": 3,
-      "student_username": "student",
-      "viewed_at": "2026-10-28T17:50:40.169Z",
-      "student_uuid": "80eedff3-9a57-45ec-a787-3584090a691b"
-    },
-    {
-      "source_id": 2,
-      "source_survey_id": 3,
-      "survey_uuid": "f4bdeaf3-69bc-4352-b003-f3b31bf134f8",
-      "source_student_id": 3,
-      "student_username": "student",
-      "viewed_at": "2026-10-28T19:56:50.357Z",
-      "student_uuid": "80eedff3-9a57-45ec-a787-3584090a691b"
-    },
-    {
-      "source_id": 3,
-      "source_survey_id": 3,
-      "survey_uuid": "f4bdeaf3-69bc-4352-b003-f3b31bf134f8",
+      "source_survey_id": 10,
+      "survey_uuid": "0c7ba73e-b03a-4639-91cf-718df57f69ff",
       "source_student_id": 5,
-      "student_username": "mahmoudsami290",
-      "viewed_at": "2026-10-28T19:57:05.909Z",
-      "student_uuid": "b2fed484-a4fd-4975-8c8a-53619ad8bd94"
-    },
-    {
-      "source_id": 4,
-      "source_survey_id": 3,
-      "survey_uuid": "f4bdeaf3-69bc-4352-b003-f3b31bf134f8",
-      "source_student_id": 5,
-      "student_username": "mahmoudsami290",
-      "viewed_at": "2026-10-28T20:14:03.590Z",
-      "student_uuid": "b2fed484-a4fd-4975-8c8a-53619ad8bd94"
-    },
-    {
-      "source_id": 5,
-      "source_survey_id": 3,
-      "survey_uuid": "f4bdeaf3-69bc-4352-b003-f3b31bf134f8",
-      "source_student_id": 5,
-      "student_username": "mahmoudsami290",
-      "viewed_at": "2026-10-28T20:14:07.711Z",
-      "student_uuid": "b2fed484-a4fd-4975-8c8a-53619ad8bd94"
-    },
-    {
-      "source_id": 6,
-      "source_survey_id": 4,
-      "survey_uuid": "3efb178d-e188-4c0c-bf07-32803c6fa58b",
-      "source_student_id": 3,
-      "student_username": "student",
-      "viewed_at": "2026-10-28T20:21:19.871Z",
-      "student_uuid": "80eedff3-9a57-45ec-a787-3584090a691b"
-    },
-    {
-      "source_id": 7,
-      "source_survey_id": 4,
-      "survey_uuid": "3efb178d-e188-4c0c-bf07-32803c6fa58b",
-      "source_student_id": 3,
-      "student_username": "student",
-      "viewed_at": "2026-10-28T21:10:49.607Z",
-      "student_uuid": "80eedff3-9a57-45ec-a787-3584090a691b"
-    },
-    {
-      "source_id": 8,
-      "source_survey_id": 4,
-      "survey_uuid": "3efb178d-e188-4c0c-bf07-32803c6fa58b",
-      "source_student_id": 5,
-      "student_username": "mahmoudsami290",
-      "viewed_at": "2026-10-28T21:10:59.113Z",
-      "student_uuid": "b2fed484-a4fd-4975-8c8a-53619ad8bd94"
-    },
-    {
-      "source_id": 9,
-      "source_survey_id": 1,
-      "survey_uuid": "46124920-9abc-461b-a765-c97a41f2f3ff",
-      "source_student_id": 5,
-      "student_username": "mahmoudsami290",
-      "viewed_at": "2026-10-28T21:11:08.093Z",
-      "student_uuid": "b2fed484-a4fd-4975-8c8a-53619ad8bd94"
-    },
-    {
-      "source_id": 12,
-      "source_survey_id": 1,
-      "survey_uuid": "46124920-9abc-461b-a765-c97a41f2f3ff",
-      "source_student_id": 3,
-      "student_username": "student",
-      "viewed_at": "2026-10-28T17:50:40.169Z",
-      "student_uuid": "80eedff3-9a57-45ec-a787-3584090a691b"
-    },
-    {
-      "source_id": 13,
-      "source_survey_id": 3,
-      "survey_uuid": "f4bdeaf3-69bc-4352-b003-f3b31bf134f8",
-      "source_student_id": 3,
-      "student_username": "student",
-      "viewed_at": "2026-10-28T19:56:50.357Z",
-      "student_uuid": "80eedff3-9a57-45ec-a787-3584090a691b"
-    },
-    {
-      "source_id": 14,
-      "source_survey_id": 3,
-      "survey_uuid": "f4bdeaf3-69bc-4352-b003-f3b31bf134f8",
-      "source_student_id": 5,
-      "student_username": "mahmoudsami290",
-      "viewed_at": "2026-10-28T19:57:05.909Z",
-      "student_uuid": "b2fed484-a4fd-4975-8c8a-53619ad8bd94"
-    },
-    {
-      "source_id": 15,
-      "source_survey_id": 3,
-      "survey_uuid": "f4bdeaf3-69bc-4352-b003-f3b31bf134f8",
-      "source_student_id": 5,
-      "student_username": "mahmoudsami290",
-      "viewed_at": "2026-10-28T20:14:03.590Z",
-      "student_uuid": "b2fed484-a4fd-4975-8c8a-53619ad8bd94"
-    },
-    {
-      "source_id": 16,
-      "source_survey_id": 3,
-      "survey_uuid": "f4bdeaf3-69bc-4352-b003-f3b31bf134f8",
-      "source_student_id": 5,
-      "student_username": "mahmoudsami290",
-      "viewed_at": "2026-10-28T20:14:07.711Z",
-      "student_uuid": "b2fed484-a4fd-4975-8c8a-53619ad8bd94"
-    },
-    {
-      "source_id": 17,
-      "source_survey_id": 4,
-      "survey_uuid": "3efb178d-e188-4c0c-bf07-32803c6fa58b",
-      "source_student_id": 3,
-      "student_username": "student",
-      "viewed_at": "2026-10-28T20:21:19.871Z",
-      "student_uuid": "80eedff3-9a57-45ec-a787-3584090a691b"
-    },
-    {
-      "source_id": 18,
-      "source_survey_id": 4,
-      "survey_uuid": "3efb178d-e188-4c0c-bf07-32803c6fa58b",
-      "source_student_id": 3,
-      "student_username": "student",
-      "viewed_at": "2026-10-28T21:10:49.607Z",
-      "student_uuid": "80eedff3-9a57-45ec-a787-3584090a691b"
-    },
-    {
-      "source_id": 19,
-      "source_survey_id": 4,
-      "survey_uuid": "3efb178d-e188-4c0c-bf07-32803c6fa58b",
-      "source_student_id": 5,
-      "student_username": "mahmoudsami290",
-      "viewed_at": "2026-10-28T21:10:59.113Z",
-      "student_uuid": "b2fed484-a4fd-4975-8c8a-53619ad8bd94"
-    },
-    {
-      "source_id": 20,
-      "source_survey_id": 1,
-      "survey_uuid": "46124920-9abc-461b-a765-c97a41f2f3ff",
-      "source_student_id": 5,
-      "student_username": "mahmoudsami290",
-      "viewed_at": "2026-10-28T21:11:08.093Z",
-      "student_uuid": "b2fed484-a4fd-4975-8c8a-53619ad8bd94"
+      "student_username": "student_tester",
+      "viewed_at": "2026-10-28T22:36:37.297Z",
+      "student_uuid": "adf44c04-c4e4-4828-8d37-ba1b2d52ca43"
     }
   ]
 }

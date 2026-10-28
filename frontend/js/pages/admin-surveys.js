@@ -54,7 +54,12 @@ function renderTable(container, surveys) {
     tdTitle.appendChild(descEl);
 
     const tdStatus = document.createElement('td');
-    tdStatus.appendChild(UI.statusBadge(s.status));
+    const isExpired = Boolean(s.isExpired || s.is_expired || (typeof UI !== 'undefined' && UI.isSurveyExpired(s.dueDate)));
+    if (s.status === 'published' && isExpired) {
+      tdStatus.appendChild(UI.statusBadge('expired'));
+    } else {
+      tdStatus.appendChild(UI.statusBadge(s.status));
+    }
 
     const tdQ = document.createElement('td');
     tdQ.textContent = String(s.questionCount ?? '—');

@@ -35,6 +35,48 @@ describe('Survey Responses & Answers Endpoints', () => {
       expect(res.body.error.message).toContain("Submissions are only accepted for 'published' surveys");
     });
 
+    it('should reject submissions for expired surveys past due date (400)', async () => {
+      vi.spyOn(db, 'query').mockImplementation(async (sql, params) => {
+        if (sql.includes('SELECT id, title, status FROM surveys')) {
+          return { rows: [{ id: 1, title: 'Expired Survey', status: 'published' }] };
+        }
+        if (sql.includes('SELECT due_date FROM surveys')) {
+          const yesterday = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+          return { rows: [{ due_date: yesterday }] };
+        }
+        return { rows: [] };
+      });
+
+      const res = await request(app)
+        .post('/api/surveys/1/responses')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({ answers: [{ question_id: 1, answer_text: 'Expired submission' }] });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.message).toContain('This survey has expired past its due date');
+    });
+
+    it('should reject submission on October 29 for a survey with due date October 28 (date-only boundary)', async () => {
+      vi.spyOn(db, 'query').mockImplementation(async (sql, params) => {
+        if (sql.includes('SELECT id, title, status FROM surveys')) {
+          return { rows: [{ id: 1, title: 'Survey Oct 28', status: 'published' }] };
+        }
+        if (sql.includes('SELECT due_date FROM surveys')) {
+          return { rows: [{ due_date: '2026-10-28T00:00:00.000Z' }] };
+        }
+        return { rows: [] };
+      });
+
+      const res = await request(app)
+        .post('/api/surveys/1/responses')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .set('x-client-time', '2026-10-29T01:15:00.000Z')
+        .send({ answers: [{ question_id: 1, answer_text: 'Late answer' }] });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.message).toContain('This survey has expired past its due date');
+    });
+
     it('should reject submissions for draft surveys (400)', async () => {
       vi.spyOn(db, 'query').mockResolvedValueOnce({
         rows: [{ id: 2, title: 'Draft Survey', status: 'draft' }],
