@@ -50,6 +50,45 @@ describe('Feedback Endpoints', () => {
       expect(res.body.data.feedback.category).toBe('facilities');
     });
 
+    it('should allow student to submit feedback with valid rating (201)', async () => {
+      vi.spyOn(db, 'query').mockResolvedValueOnce({
+        rows: [
+          {
+            id: 2,
+            student_id: 30,
+            message: 'Excellent course material and delivery.',
+            rating: 5,
+            created_at: new Date().toISOString(),
+          },
+        ],
+      });
+
+      const res = await request(app)
+        .post('/api/feedback')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({
+          message: 'Excellent course material and delivery.',
+          rating: 5,
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.feedback.rating).toBe(5);
+    });
+
+    it('should reject feedback submission with invalid rating (400)', async () => {
+      const res = await request(app)
+        .post('/api/feedback')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({
+          message: 'Feedback with bad rating',
+          rating: 6,
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.message).toContain("Field 'rating' must be an integer between 1 and 5");
+    });
+
     it('should reject feedback submission with empty message (400)', async () => {
       const res = await request(app)
         .post('/api/feedback')

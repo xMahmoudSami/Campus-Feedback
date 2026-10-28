@@ -10,6 +10,25 @@ const server = app.listen(env.port, '0.0.0.0', () => {
   console.log(` Health check: http://localhost:${env.port}/api/health`);
   console.log(` Database check: http://localhost:${env.port}/api/health/db`);
   console.log(`====================================================`);
+
+  // Ensure official demo accounts and required schema exist upon startup
+  (async () => {
+    try {
+      const conn = await db.testConnection();
+      if (conn.ok) {
+        // Safe schema migrations for feedback rating and survey due_date
+        await db.query(`ALTER TABLE feedback ADD COLUMN IF NOT EXISTS rating INT CHECK (rating BETWEEN 1 AND 5);`);
+        await db.query(`ALTER TABLE surveys ADD COLUMN IF NOT EXISTS due_date TIMESTAMPTZ;`);
+
+        const { seedDatabase } = require('./scripts/seed');
+        await seedDatabase();
+      } else {
+        console.warn('[DB WARNING] Database connection ping failed during startup:', conn.error);
+      }
+    } catch (err) {
+      console.warn('[STARTUP WARNING] Startup check error:', err.message);
+    }
+  })();
 });
 
 // Graceful shutdown handling

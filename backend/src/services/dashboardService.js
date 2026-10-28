@@ -72,8 +72,11 @@ async function getAdminDashboard() {
       f.survey_id,
       s.title AS survey_title,
       f.message,
+      f.rating,
       f.created_at,
-      u.username AS student_username
+      u.username AS student_username,
+      u.full_name AS student_full_name,
+      u.email AS student_email
     FROM feedback f
     LEFT JOIN users u ON f.student_id = u.id
     LEFT JOIN surveys s ON f.survey_id = s.id
@@ -145,8 +148,10 @@ async function getStudentDashboard(studentId) {
       s.title,
       s.description,
       s.status,
+      s.due_date,
       s.created_at,
       s.published_at,
+      s.closed_at,
       (SELECT COUNT(*)::int FROM questions q WHERE q.survey_id = s.id) AS question_count,
       sr.id AS response_id,
       sr.status AS response_status,
@@ -154,7 +159,7 @@ async function getStudentDashboard(studentId) {
       CASE WHEN sr.id IS NOT NULL AND sr.status = 'completed' THEN true ELSE false END AS is_completed
     FROM surveys s
     LEFT JOIN survey_responses sr ON sr.survey_id = s.id AND sr.student_id = $1
-    WHERE s.status = 'published'
+    WHERE (s.status = 'published' OR (sr.id IS NOT NULL AND sr.status = 'completed'))
     ORDER BY s.created_at DESC;
   `;
 
@@ -169,9 +174,9 @@ async function getStudentDashboard(studentId) {
   ]);
 
   const surveys = surveysRes.rows;
-  const availableCount = surveys.length;
+  const availableCount = surveys.filter((s) => s.status === 'published' || !s.status).length;
   const completedCount = surveys.filter((s) => s.is_completed).length;
-  const pendingCount = Math.max(0, availableCount - completedCount);
+  const pendingCount = surveys.filter((s) => (s.status === 'published' || !s.status) && !s.is_completed).length;
   const feedbackCount = feedbackRes.rows[0]?.count || 0;
 
   return {
@@ -185,9 +190,12 @@ async function getStudentDashboard(studentId) {
       id: s.id,
       title: s.title,
       description: s.description,
+      status: s.status,
+      due_date: s.due_date,
       question_count: s.question_count,
       created_at: s.created_at,
       published_at: s.published_at,
+      closed_at: s.closed_at,
       is_completed: s.is_completed,
       submitted_at: s.completed_at,
     })),

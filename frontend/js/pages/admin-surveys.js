@@ -99,6 +99,12 @@ function renderTable(container, surveys) {
       closeBtn.textContent = 'Close';
       closeBtn.addEventListener('click', () => changeStatus(s.id, 'closed'));
       group.appendChild(closeBtn);
+    } else if (s.status === 'closed') {
+      const reopenBtn = document.createElement('button');
+      reopenBtn.className = 'btn btn-sm btn-success';
+      reopenBtn.textContent = 'Reopen';
+      reopenBtn.addEventListener('click', () => changeStatus(s.id, 'published'));
+      group.appendChild(reopenBtn);
     }
 
     // Delete

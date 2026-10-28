@@ -9,7 +9,7 @@ const db = require('../config/db');
  * @param {object} feedbackData - { message, survey_id, title, category }
  */
 async function createFeedback(studentId, feedbackData) {
-  const { message, survey_id, title, category } = feedbackData;
+  const { message, survey_id, title, category, rating } = feedbackData;
 
   // Format title or category into message if provided by client for backward compatibility
   let composedMessage = message.trim();
@@ -18,15 +18,21 @@ async function createFeedback(studentId, feedbackData) {
   }
 
   const validSurveyId = survey_id ? Number(survey_id) : null;
+  const validRating = (rating !== undefined && rating !== null && rating !== '') ? Number(rating) : null;
 
   const insertRes = await db.query(
-    `INSERT INTO feedback (student_id, survey_id, message)
-     VALUES ($1, $2, $3)
-     RETURNING id, student_id, survey_id, message, created_at;`,
-    [studentId, validSurveyId, composedMessage]
+    `INSERT INTO feedback (student_id, survey_id, message, rating)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id, student_id, survey_id, message, rating, created_at;`,
+    [studentId, validSurveyId, composedMessage, validRating]
   );
 
-  return insertRes.rows[0];
+  const row = insertRes.rows[0];
+  return {
+    ...row,
+    ...(category && !row.category ? { category } : {}),
+    ...(title && !row.title ? { title } : {}),
+  };
 }
 
 /**
@@ -41,6 +47,7 @@ async function getAllFeedback() {
       f.student_id,
       f.survey_id,
       f.message,
+      f.rating,
       f.created_at,
       u.username AS student_username,
       u.email AS student_email,
@@ -68,6 +75,7 @@ async function getFeedbackByStudent(studentId) {
       f.student_id,
       f.survey_id,
       f.message,
+      f.rating,
       f.created_at,
       u.username AS student_username,
       u.email AS student_email,

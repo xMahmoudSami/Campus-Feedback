@@ -16,7 +16,7 @@ async function getSurveys(user, filters = {}) {
   const whereClauses = [];
 
   if (isStudent) {
-    whereClauses.push(`s.status = 'published'`);
+    whereClauses.push(`s.status IN ('published', 'closed')`);
   } else if (filters.status) {
     if (!['draft', 'published', 'closed'].includes(filters.status)) {
       throw new ValidationError("Invalid status filter. Must be 'draft', 'published', or 'closed'.");
@@ -36,6 +36,7 @@ async function getSurveys(user, filters = {}) {
       s.title,
       s.description,
       s.status,
+      s.due_date,
       s.created_by,
       s.created_at,
       s.published_at,
@@ -67,7 +68,7 @@ async function getSurveys(user, filters = {}) {
  */
 async function getSurveyById(surveyId, user) {
   const surveyRes = await db.query(
-    `SELECT s.id, s.title, s.description, s.status, s.created_by, s.created_at, s.published_at, s.closed_at,
+    `SELECT s.id, s.title, s.description, s.status, s.due_date, s.created_by, s.created_at, s.published_at, s.closed_at,
             u.username AS creator_username
      FROM surveys s
      LEFT JOIN users u ON s.created_by = u.id
@@ -96,12 +97,32 @@ async function getSurveyById(surveyId, user) {
 
   // Check if student has already submitted
   let hasSubmitted = false;
+  let myResponse = null;
   if (user.role === 'student') {
     const submissionRes = await db.query(
-      `SELECT id, status, completed_at FROM survey_responses WHERE survey_id = $1 AND student_id = $2 AND status = 'completed'`,
+      `SELECT sr.id, sr.status, sr.completed_at,
+              COALESCE(
+                json_agg(
+                  json_build_object(
+                    'question_id', a.question_id,
+                    'answer_text', a.answer_text,
+                    'rating', a.rating
+                  )
+                ) FILTER (WHERE a.id IS NOT NULL),
+                '[]'::json
+              ) AS answers
+       FROM survey_responses sr
+       LEFT JOIN answers a ON a.response_id = sr.id
+       WHERE sr.survey_id = $1 AND sr.student_id = $2 AND sr.status = 'completed'
+       GROUP BY sr.id
+       ORDER BY sr.completed_at DESC NULLS LAST
+       LIMIT 1`,
       [surveyId, user.id]
     );
-    hasSubmitted = submissionRes.rows.length > 0;
+    if (submissionRes.rows.length > 0) {
+      hasSubmitted = true;
+      myResponse = submissionRes.rows[0];
+    }
 
     // Log genuine student view if viewing a published survey
     // Schema survey_views: (survey_id, student_id, viewed_at)
@@ -121,6 +142,7 @@ async function getSurveyById(surveyId, user) {
   return {
     ...survey,
     has_submitted: hasSubmitted,
+    my_response: myResponse,
     questions: questionsRes.rows,
   };
 }
@@ -135,14 +157,16 @@ async function getSurveyById(surveyId, user) {
 async function createSurvey(surveyData, adminId) {
   const { title, description = '', status = 'draft', questions = [] } = surveyData;
   const isPublished = status === 'published';
+  const rawDue = surveyData.due_date !== undefined ? surveyData.due_date : surveyData.dueDate;
+  const dueDate = rawDue && String(rawDue).trim() ? new Date(rawDue) : null;
 
   return await db.withTransaction(async (client) => {
     // 1. Insert survey with published_at if initially published
     const surveyInsertRes = await client.query(
-      `INSERT INTO surveys (title, description, status, created_by, published_at)
-       VALUES ($1, $2, $3, $4, ${isPublished ? 'NOW()' : 'NULL'})
+      `INSERT INTO surveys (title, description, status, due_date, created_by, published_at)
+       VALUES ($1, $2, $3, $4, $5, ${isPublished ? 'NOW()' : 'NULL'})
        RETURNING *`,
-      [title.trim(), description ? description.trim() : null, status, adminId]
+      [title.trim(), description ? description.trim() : null, status, dueDate, adminId]
     );
     const newSurvey = surveyInsertRes.rows[0];
 
@@ -210,6 +234,13 @@ async function updateSurvey(surveyId, updateData) {
   if (description !== undefined) {
     params.push(typeof description === 'string' ? description.trim() : null);
     fields.push(`description = $${params.length}`);
+  }
+
+  const rawDue = updateData.due_date !== undefined ? updateData.due_date : updateData.dueDate;
+  if (rawDue !== undefined) {
+    const parsedDue = rawDue && String(rawDue).trim() ? new Date(rawDue) : null;
+    params.push(parsedDue);
+    fields.push(`due_date = $${params.length}`);
   }
 
   if (fields.length === 0) {

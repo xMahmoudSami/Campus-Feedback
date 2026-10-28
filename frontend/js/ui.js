@@ -123,16 +123,15 @@ const UI = {
     return span;
   },
 
-  // ─── Avatar initials ──────────────────────────────────────
-  avatar(name, index = 0) {
+  // ─── Avatar static role icon ──────────────────────────────
+  avatar(name, index = 0, role = 'student') {
     const span = document.createElement('span');
-    span.className = `student-avatar avatar-${(index % 6) + 1}`;
-    const parts = (name || '?').trim().split(/\s+/);
-    const initials =
-      parts.length >= 2
-        ? (parts[0][0] + parts[1][0]).toUpperCase()
-        : (parts[0] || '?').substring(0, 2).toUpperCase();
-    span.textContent = initials;
+    span.className = 'student-avatar avatar-icon-wrap';
+    const isStudent = role !== 'admin';
+    const assetFile = isStudent ? 'assets/student.svg' : 'assets/admin.svg';
+    const iconSrc = typeof appUrl === 'function' ? appUrl(assetFile) : `../${assetFile}`;
+    const alt = isStudent ? 'Student' : 'Admin';
+    span.innerHTML = `<img src="${iconSrc}" alt="${alt}" class="role-avatar-img" />`;
     return span;
   },
 
@@ -197,7 +196,7 @@ const UI = {
 
   // ─── Sidebar toggle (mobile) ──────────────────────────────
   initSidebar() {
-    const toggle = document.querySelector('.menu-toggle');
+    const toggle = document.querySelector('.mobile-menu-btn, .menu-toggle');
     const sidebar = document.querySelector('.sidebar');
     let overlay = document.querySelector('.sidebar-overlay');
 
@@ -219,8 +218,10 @@ const UI = {
     }
   },
 
-  // ─── Populate user info in sidebar / topbar ───────────────
   populateUserInfo() {
+    // Globally remove any legacy topbar or header from the DOM
+    document.querySelectorAll('header, header.topbar, .topbar, .topbar-user').forEach((el) => el.remove());
+
     const user = Auth.getUser();
     if (!user) return;
 
@@ -234,11 +235,11 @@ const UI = {
       el.textContent = user.role === 'admin' ? 'Administrator' : 'Student';
     });
     document.querySelectorAll('[data-user-initials]').forEach((el) => {
-      const parts = (user.name || 'U').trim().split(/\s+/);
-      el.textContent =
-        parts.length >= 2
-          ? (parts[0][0] + parts[1][0]).toUpperCase()
-          : (parts[0] || 'U').substring(0, 2).toUpperCase();
+      const isStudent = user.role !== 'admin';
+      const assetFile = isStudent ? 'assets/student.svg' : 'assets/admin.svg';
+      const iconSrc = typeof appUrl === 'function' ? appUrl(assetFile) : `../${assetFile}`;
+      const altText = isStudent ? 'Student Account' : 'Admin Account';
+      el.innerHTML = `<img src="${iconSrc}" alt="${altText}" class="role-avatar-img" />`;
     });
   },
 
@@ -272,3 +273,14 @@ const UI = {
 };
 
 window.UI = UI;
+
+// Ensure any legacy header / topbar elements are immediately purged
+(function () {
+  const purge = () => {
+    document.querySelectorAll('header, header.topbar, .topbar, .topbar-user').forEach((el) => el.remove());
+  };
+  purge();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', purge);
+  }
+})();

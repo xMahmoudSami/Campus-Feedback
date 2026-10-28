@@ -105,10 +105,34 @@ async function apiFetch(path, options = {}) {
   const res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
 
   if (res.status === 401) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    if (window.Auth) Auth.go('login.html'); else window.location.href = 'login.html';
-    throw new Error('Unauthorized');
+    const isAuthRoute = path.startsWith('/auth/login') || path.startsWith('/auth/register') || path.startsWith('/auth/signup');
+    const isAuthPage = typeof window !== 'undefined' && window.location && (
+      (window.location.pathname || '').endsWith('login.html') ||
+      (window.location.pathname || '').endsWith('signup.html')
+    );
+
+    // Only redirect if an authenticated session expired on a protected page
+    if (!isAuthRoute && !isAuthPage && !options.skipAuthRedirect) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      if (window.Auth) Auth.go('login.html'); else window.location.href = 'login.html';
+    }
+
+    let msg = 'Unauthorized';
+    try {
+      const body = await res.json();
+      if (typeof body.error === 'string') {
+        msg = body.error;
+      } else if (body.error && body.error.message) {
+        msg = body.error.message;
+      } else if (body.message) {
+        msg = body.message;
+      }
+    } catch (_) { /* ignore */ }
+
+    const err = new Error(msg);
+    err.status = 401;
+    throw err;
   }
 
   if (res.status === 403) {
@@ -450,7 +474,7 @@ async function getAdminDashboard() {
       studentName: f.student_full_name || f.student_username || f.student_email || 'Student',
       studentEmail: f.student_email || '',
       surveyTitle: f.survey_title || 'General',
-      rating: 5,
+      rating: f.rating !== undefined ? f.rating : null,
       comment: f.message,
       date: f.created_at ? new Date(f.created_at).toLocaleDateString() : '',
     })),
@@ -489,30 +513,47 @@ async function getStudentDashboard() {
   const res = await apiFetch('/dashboard/student');
   const raw = res.data || res;
   const allSurveys = raw.surveys || [];
-  const available = allSurveys.filter((s) => !s.is_completed).map((s) => ({
-    id: s.id,
-    title: s.title,
-    description: s.description || '',
-    questionCount: s.question_count || 0,
-    dueDate: null,
-    status: 'Available',
-  }));
-  const completed = allSurveys.filter((s) => s.is_completed).map((s) => ({
-    id: s.id,
-    surveyId: s.id,
-    surveyTitle: s.title,
-    completedOn: s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : 'Completed',
-    status: 'Completed',
-  }));
+  const available = allSurveys
+    .filter((s) => (s.status === 'published' || !s.status) && !s.is_completed)
+    .map((s) => ({
+      id: s.id,
+      title: s.title,
+      description: s.description || '',
+      questionCount: s.question_count || 0,
+      dueDate: s.due_date ?? s.dueDate ?? null,
+      status: 'Available',
+    }));
+  const completed = allSurveys
+    .filter((s) => s.is_completed)
+    .map((s) => ({
+      id: s.id,
+      surveyId: s.id,
+      surveyTitle: s.title,
+      completedOn: s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : 'Completed',
+      status: s.status === 'closed' ? 'Closed' : 'Completed',
+    }));
+
+  let recentResponses = completed;
+  if (recentResponses.length === 0) {
+    try {
+      const myResp = await getMyResponses();
+      if (myResp && myResp.length > 0) {
+        recentResponses = myResp;
+      }
+    } catch (_) { /* ignore */ }
+  }
+
+  const finalCompletedCount = Math.max(raw.summary?.completed_surveys_count ?? 0, recentResponses.length);
+
   return {
     stats: {
       availableSurveys: raw.summary?.pending_surveys_count ?? available.length,
-      completedSurveys: raw.summary?.completed_surveys_count ?? completed.length,
-      totalResponses: raw.summary?.completed_surveys_count ?? completed.length,
+      completedSurveys: finalCompletedCount,
+      totalResponses: finalCompletedCount,
       yourFeedback: raw.summary?.feedback_submitted_count ?? 0,
     },
     availableSurveys: available,
-    recentResponses: completed,
+    recentResponses: recentResponses,
     ...raw,
   };
 }
@@ -529,6 +570,8 @@ async function getSurveys() {
   const list = res.data?.surveys || res.surveys || (Array.isArray(res) ? res : []);
   return list.map((s) => ({
     ...s,
+    dueDate: s.due_date ?? s.dueDate ?? null,
+    hasSubmitted: Boolean(s.has_submitted ?? s.hasSubmitted ?? false),
     questionCount: s.question_count ?? s.questionCount ?? 0,
     responseCount: s.response_count ?? s.responseCount ?? 0,
     updatedAt: s.published_at || s.created_at,
@@ -551,6 +594,9 @@ async function getSurvey(id) {
   const survey = res.data?.survey || res.survey || res;
   return {
     ...survey,
+    dueDate: survey.due_date ?? survey.dueDate ?? null,
+    hasSubmitted: Boolean(survey.has_submitted ?? survey.hasSubmitted ?? false),
+    myResponse: survey.my_response || survey.myResponse || null,
     questions: (survey.questions || []).map((q) => ({
       ...q,
       text: q.question_text || q.text,
@@ -594,6 +640,8 @@ async function createSurvey(data) {
     title: data.title,
     description: data.description,
     status: data.status,
+    dueDate: data.dueDate || data.due_date || null,
+    due_date: data.dueDate || data.due_date || null,
     questions: (data.questions || []).map((q, idx) => ({
       question_text: q.text || q.question_text,
       question_type: q.type || q.question_type,
@@ -639,6 +687,8 @@ async function updateSurvey(id, data) {
   const payload = {
     title: data.title,
     description: data.description,
+    dueDate: data.dueDate !== undefined ? data.dueDate : data.due_date,
+    due_date: data.dueDate !== undefined ? data.dueDate : data.due_date,
   };
   const res = await apiFetch(`/surveys/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
   return res.data?.survey || res.survey || res;
@@ -836,6 +886,7 @@ async function submitFeedback(data) {
     body: JSON.stringify({
       message: data.message,
       survey_id: data.survey_id || data.surveyId,
+      rating: data.rating !== undefined && data.rating !== null && data.rating !== '' ? Number(data.rating) : null,
     }),
   });
   return res.data?.feedback || res.feedback || res;
@@ -856,6 +907,7 @@ async function getFeedback() {
   const list = res.data?.feedback || res.feedback || (Array.isArray(res) ? res : []);
   return list.map((f) => ({
     ...f,
+    rating: f.rating !== undefined ? f.rating : null,
     studentName: f.student_full_name || f.student_username || f.studentName || 'Student',
     studentEmail: f.student_email || f.studentEmail || '',
     surveyTitle: f.survey_title || f.surveyTitle || 'General',

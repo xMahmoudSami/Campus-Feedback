@@ -24,6 +24,7 @@ CREATE TABLE surveys (
     status       VARCHAR(10)  NOT NULL DEFAULT 'draft'
                  CHECK (status IN ('draft', 'published', 'closed')),
     created_by   INT NOT NULL REFERENCES users(id),
+    due_date     TIMESTAMPTZ,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     published_at TIMESTAMPTZ,
     closed_at    TIMESTAMPTZ
@@ -69,6 +70,7 @@ CREATE TABLE feedback (
     student_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     survey_id  INT REFERENCES surveys(id) ON DELETE SET NULL,  -- optional link to a survey
     message    TEXT NOT NULL,
+    rating     INT CHECK (rating BETWEEN 1 AND 5),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

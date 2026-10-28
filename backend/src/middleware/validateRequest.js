@@ -69,7 +69,7 @@ function validateLoginBody(req, res, next) {
  * (Transparently normalizes 'single_choice' to 'multiple_choice' for client flexibility)
  */
 function validateSurveyCreate(req, res, next) {
-  const { title, description, status, questions } = req.body || {};
+  const { title, description, status, questions, dueDate, due_date } = req.body || {};
 
   if (!title || typeof title !== 'string' || !title.trim()) {
     return next(new ValidationError("Field 'title' is required and must be a non-empty string."));
@@ -81,6 +81,11 @@ function validateSurveyCreate(req, res, next) {
 
   if (status && !['draft', 'published', 'closed'].includes(status)) {
     return next(new ValidationError("Field 'status' must be one of: 'draft', 'published', 'closed'."));
+  }
+
+  const rawDue = dueDate !== undefined ? dueDate : due_date;
+  if (rawDue && isNaN(Date.parse(rawDue))) {
+    return next(new ValidationError("Field 'due_date' must be a valid date or null."));
   }
 
   if (questions !== undefined) {
@@ -184,6 +189,17 @@ function validateFeedbackCreate(req, res, next) {
       return next(new ValidationError("Field 'survey_id' must be a valid positive integer if provided."));
     }
     req.body.survey_id = num;
+  }
+
+  const { rating } = req.body || {};
+  if (rating !== undefined && rating !== null && rating !== '') {
+    const numRating = Number(rating);
+    if (!Number.isInteger(numRating) || numRating < 1 || numRating > 5) {
+      return next(new ValidationError("Field 'rating' must be an integer between 1 and 5 if provided."));
+    }
+    req.body.rating = numRating;
+  } else {
+    req.body.rating = null;
   }
 
   next();

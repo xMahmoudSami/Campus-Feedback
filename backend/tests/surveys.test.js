@@ -17,10 +17,10 @@ describe('Surveys Endpoints', () => {
       expect(res.status).toBe(401);
     });
 
-    it('should return only published surveys for students', async () => {
+    it('should return published and closed surveys for students', async () => {
       vi.spyOn(db, 'query').mockImplementation(async (sql, params) => {
-        // Confirm that the query filters by status = 'published'
-        expect(sql).toContain("s.status = 'published'");
+        // Confirm that the query filters by published and closed
+        expect(sql).toContain("s.status IN ('published', 'closed')");
         return {
           rows: [
             {
@@ -30,6 +30,14 @@ describe('Surveys Endpoints', () => {
               question_count: 3,
               response_count: 5,
               has_submitted: false,
+            },
+            {
+              id: 2,
+              title: 'Closed Survey 2',
+              status: 'closed',
+              question_count: 2,
+              response_count: 4,
+              has_submitted: true,
             },
           ],
         };
@@ -41,8 +49,9 @@ describe('Surveys Endpoints', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.surveys.length).toBe(1);
+      expect(res.body.data.surveys.length).toBe(2);
       expect(res.body.data.surveys[0].status).toBe('published');
+      expect(res.body.data.surveys[1].status).toBe('closed');
     });
 
     it('should allow admins to view all surveys including drafts and closed', async () => {
@@ -236,6 +245,33 @@ describe('Surveys Endpoints', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data.survey.id).toBe(15);
       expect(res.body.data.survey.questions.length).toBe(2);
+    });
+
+    it('should create survey with due_date and return it (201)', async () => {
+      vi.spyOn(db, 'withTransaction').mockImplementation(async (callback) => {
+        const fakeClient = {
+          query: vi.fn()
+            .mockResolvedValueOnce({
+              rows: [{ id: 16, title: 'Due Date Survey', due_date: '2026-12-31T23:59:59.000Z', status: 'draft' }],
+            })
+            .mockResolvedValueOnce({
+              rows: [{ id: 101, question_text: 'Text Q', question_type: 'text' }],
+            }),
+        };
+        return await callback(fakeClient);
+      });
+
+      const res = await request(app)
+        .post('/api/surveys')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          title: 'Due Date Survey',
+          dueDate: '2026-12-31',
+          questions: [{ question_text: 'Text Q', question_type: 'text' }],
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.data.survey.due_date).toBe('2026-12-31T23:59:59.000Z');
     });
 
     it('should reject survey creation with invalid question type (400)', async () => {

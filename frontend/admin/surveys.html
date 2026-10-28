@@ -6,7 +6,7 @@
   <title>Surveys – Admin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/style.css?v=5" />
 </head>
 <body>
   <div class="app-layout">
@@ -28,7 +28,7 @@
       </nav>
       <div class="sidebar-footer">
         <div class="user-info">
-          <div class="user-avatar" data-user-initials>A</div>
+          <div class="user-avatar" data-user-initials><img src="../assets/admin.svg" alt="Admin" class="role-avatar-img"></div>
           <div class="user-details">
             <div class="user-name" data-user-name>Admin</div>
             <div class="user-email" data-user-email>admin@example.com</div>
@@ -39,17 +39,6 @@
     </aside>
 
     <div class="main-content">
-      <header class="topbar">
-        <div class="topbar-left">
-          <button class="menu-toggle menu-toggle-bars" aria-label="Toggle menu"><span></span><span></span><span></span></button>
-        </div>
-        <div class="topbar-right">
-          <div class="topbar-user">
-            <span data-user-name>Admin</span>
-          </div>
-        </div>
-      </header>
-
       <div class="page-body">
         <div class="page-header d-flex justify-between align-center">
           <div>
@@ -66,9 +55,9 @@
     </div>
   </div>
 
-  <script src="../js/api.js"></script>
-  <script src="../js/auth.js"></script>
-  <script src="../js/ui.js"></script>
-  <script src="../js/pages/admin-surveys.js"></script>
+  <script src="../js/api.js?v=5"></script>
+  <script src="../js/auth.js?v=5"></script>
+  <script src="../js/ui.js?v=5"></script>
+  <script src="../js/pages/admin-surveys.js?v=5"></script>
 </body>
 </html>

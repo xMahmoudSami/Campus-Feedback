@@ -97,12 +97,32 @@ function renderAvailable(container, surveys) {
 
     const actions = document.createElement('div');
     actions.className = 'survey-item-actions';
-    actions.appendChild(UI.statusBadge('available'));
-    const startBtn = document.createElement('a');
-    startBtn.className = 'btn btn-sm btn-primary';
-    startBtn.textContent = 'Start Survey';
-    startBtn.href = appUrl(`student/survey.html?id=${s.id}`);
-    actions.appendChild(startBtn);
+
+    const isClosed = s.status === 'closed';
+    const hasSubmitted = Boolean(s.hasSubmitted);
+
+    if (isClosed) {
+      actions.appendChild(UI.statusBadge('closed'));
+      const previewBtn = document.createElement('a');
+      previewBtn.className = 'btn btn-sm btn-secondary';
+      previewBtn.textContent = 'Preview';
+      previewBtn.href = appUrl(`student/survey.html?id=${s.id}&mode=preview`);
+      actions.appendChild(previewBtn);
+    } else if (hasSubmitted) {
+      actions.appendChild(UI.statusBadge('completed'));
+      const previewBtn = document.createElement('a');
+      previewBtn.className = 'btn btn-sm btn-secondary';
+      previewBtn.textContent = 'Preview';
+      previewBtn.href = appUrl(`student/survey.html?id=${s.id}&mode=preview`);
+      actions.appendChild(previewBtn);
+    } else {
+      actions.appendChild(UI.statusBadge('available'));
+      const startBtn = document.createElement('a');
+      startBtn.className = 'btn btn-sm btn-primary';
+      startBtn.textContent = 'Start Survey';
+      startBtn.href = appUrl(`student/survey.html?id=${s.id}`);
+      actions.appendChild(startBtn);
+    }
 
     item.appendChild(info);
     item.appendChild(actions);
@@ -120,7 +140,7 @@ function renderResponses(container, responses) {
   const table = document.createElement('table');
   const thead = document.createElement('thead');
   const hr = document.createElement('tr');
-  ['Survey', 'Completed On', 'Status'].forEach((h) => {
+  ['Survey', 'Completed On', 'Status', 'Action'].forEach((h) => {
     const th = document.createElement('th');
     th.textContent = h;
     hr.appendChild(th);
@@ -137,9 +157,17 @@ function renderResponses(container, responses) {
     tdDate.textContent = r.completedOn || UI.formatDate(r.submittedAt);
     const tdStatus = document.createElement('td');
     tdStatus.appendChild(UI.statusBadge(r.status || 'Completed'));
+    const tdAction = document.createElement('td');
+    const previewBtn = document.createElement('a');
+    previewBtn.className = 'btn btn-sm btn-secondary';
+    previewBtn.textContent = 'Preview';
+    previewBtn.href = appUrl(`student/survey.html?id=${r.surveyId || r.survey_id}&mode=preview`);
+    tdAction.appendChild(previewBtn);
+
     tr.appendChild(tdTitle);
     tr.appendChild(tdDate);
     tr.appendChild(tdStatus);
+    tr.appendChild(tdAction);
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);

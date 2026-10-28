@@ -1,5 +1,5 @@
 /**
- * Student – Available Surveys list
+ * Student – Surveys list (Active, Completed, Closed)
  */
 document.addEventListener('DOMContentLoaded', async () => {
   if (!Auth.requireAuth('student')) return;
@@ -13,8 +13,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   try {
     const surveys = await API.getSurveys();
-    const published = surveys.filter((s) => s.status === 'published');
-    renderList(container, published);
+    // Allow published and closed surveys
+    const visibleSurveys = surveys.filter((s) => s.status === 'published' || s.status === 'closed');
+    renderList(container, visibleSurveys);
   } catch (err) {
     UI.handleError(err);
     UI.showEmpty(container, 'Error', 'Could not load surveys');
@@ -24,7 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 function renderList(container, surveys) {
   container.textContent = '';
   if (!surveys.length) {
-    UI.showEmpty(container, 'No surveys available', 'There are no published surveys right now.');
+    UI.showEmpty(container, 'No surveys available', 'There are no surveys available right now.');
     return;
   }
 
@@ -53,12 +54,35 @@ function renderList(container, surveys) {
 
     const actions = document.createElement('div');
     actions.className = 'survey-item-actions';
-    actions.appendChild(UI.statusBadge('available'));
-    const btn = document.createElement('a');
-    btn.className = 'btn btn-primary';
-    btn.textContent = 'Start Survey';
-    btn.href = appUrl(`student/survey.html?id=${s.id}`);
-    actions.appendChild(btn);
+
+    const isClosed = s.status === 'closed';
+    const hasSubmitted = Boolean(s.hasSubmitted);
+
+    if (isClosed) {
+      actions.appendChild(UI.statusBadge('closed'));
+      if (hasSubmitted) {
+        actions.appendChild(UI.statusBadge('completed'));
+      }
+      const previewBtn = document.createElement('a');
+      previewBtn.className = 'btn btn-secondary';
+      previewBtn.textContent = 'Preview';
+      previewBtn.href = appUrl(`student/survey.html?id=${s.id}&mode=preview`);
+      actions.appendChild(previewBtn);
+    } else if (hasSubmitted) {
+      actions.appendChild(UI.statusBadge('completed'));
+      const previewBtn = document.createElement('a');
+      previewBtn.className = 'btn btn-secondary';
+      previewBtn.textContent = 'Preview';
+      previewBtn.href = appUrl(`student/survey.html?id=${s.id}&mode=preview`);
+      actions.appendChild(previewBtn);
+    } else {
+      actions.appendChild(UI.statusBadge('available'));
+      const startBtn = document.createElement('a');
+      startBtn.className = 'btn btn-primary';
+      startBtn.textContent = 'Start Survey';
+      startBtn.href = appUrl(`student/survey.html?id=${s.id}`);
+      actions.appendChild(startBtn);
+    }
 
     item.appendChild(info);
     item.appendChild(actions);
