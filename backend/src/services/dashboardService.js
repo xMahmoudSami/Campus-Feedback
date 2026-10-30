@@ -92,18 +92,22 @@ async function getAdminDashboard() {
       -- Surveys created
       (SELECT COUNT(*)::int FROM surveys WHERE created_at >= date_trunc('month', NOW())) AS surveys_this_month,
       (SELECT COUNT(*)::int FROM surveys WHERE created_at >= date_trunc('month', NOW() - INTERVAL '1 month') AND created_at < date_trunc('month', NOW())) AS surveys_last_month,
+      (SELECT COUNT(*)::int FROM surveys WHERE created_at < date_trunc('month', NOW())) AS surveys_prior_total,
+      (SELECT COUNT(*)::int FROM surveys) AS surveys_current_total,
 
       -- Registered students (strictly users with role = 'student')
       (SELECT COUNT(*)::int FROM users WHERE role = 'student' AND created_at >= date_trunc('month', NOW())) AS students_this_month,
       (SELECT COUNT(*)::int FROM users WHERE role = 'student' AND created_at >= date_trunc('month', NOW() - INTERVAL '1 month') AND created_at < date_trunc('month', NOW())) AS students_last_month,
+      (SELECT COUNT(*)::int FROM users WHERE role = 'student' AND created_at < date_trunc('month', NOW())) AS students_prior_total,
+      (SELECT COUNT(*)::int FROM users WHERE role = 'student') AS students_current_total,
 
       -- Completed responses
       (SELECT COUNT(*)::int FROM survey_responses WHERE status = 'completed' AND completed_at >= date_trunc('month', NOW())) AS responses_this_month,
       (SELECT COUNT(*)::int FROM survey_responses WHERE status = 'completed' AND completed_at >= date_trunc('month', NOW() - INTERVAL '1 month') AND completed_at < date_trunc('month', NOW())) AS responses_last_month,
 
       -- Total attempts for completion rate comparison
-      (SELECT COUNT(*)::int FROM survey_responses WHERE created_at >= date_trunc('month', NOW())) AS attempts_this_month,
-      (SELECT COUNT(*)::int FROM survey_responses WHERE created_at >= date_trunc('month', NOW() - INTERVAL '1 month') AND created_at < date_trunc('month', NOW())) AS attempts_last_month;
+      (SELECT COUNT(*)::int FROM survey_responses WHERE started_at >= date_trunc('month', NOW())) AS attempts_this_month,
+      (SELECT COUNT(*)::int FROM survey_responses WHERE started_at >= date_trunc('month', NOW() - INTERVAL '1 month') AND started_at < date_trunc('month', NOW())) AS attempts_last_month;
   `;
 
   // 6. Last 7 calendar days activity timeseries
@@ -141,8 +145,14 @@ async function getAdminDashboard() {
     db.query(surveysMetricsQuery),
     db.query(recentResponsesQuery),
     db.query(recentFeedbackQuery),
-    db.query(monthlyChangesQuery).catch(() => ({ rows: [] })),
-    db.query(activityQuery).catch(() => ({ rows: [] })),
+    db.query(monthlyChangesQuery).catch((err) => {
+      console.error('[DashboardService] monthlyChangesQuery error:', err);
+      return { rows: [] };
+    }),
+    db.query(activityQuery).catch((err) => {
+      console.error('[DashboardService] activityQuery error:', err);
+      return { rows: [] };
+    }),
   ]);
 
   const counts = countsRes.rows[0] || {
@@ -160,8 +170,12 @@ async function getAdminDashboard() {
   const m = monthlyRes?.rows?.[0] || {
     surveys_this_month: 0,
     surveys_last_month: 0,
+    surveys_prior_total: 0,
+    surveys_current_total: 0,
     students_this_month: 0,
     students_last_month: 0,
+    students_prior_total: 0,
+    students_current_total: 0,
     responses_this_month: 0,
     responses_last_month: 0,
     attempts_this_month: 0,
@@ -175,8 +189,21 @@ async function getAdminDashboard() {
     return Math.round(((current - prior) / prior) * 100);
   }
 
-  const surveysChange = calcPercentageChange(Number(m.surveys_this_month) || 0, Number(m.surveys_last_month) || 0);
-  const studentsChange = calcPercentageChange(Number(m.students_this_month) || 0, Number(m.students_last_month) || 0);
+  // Surveys: compare surveys created this month vs last month (or cumulative growth if prior surveys exist)
+  const surveysChange = m.surveys_last_month !== undefined && Number(m.surveys_last_month) > 0
+    ? calcPercentageChange(Number(m.surveys_this_month) || 0, Number(m.surveys_last_month) || 0)
+    : (Number(m.surveys_prior_total) > 0
+        ? calcPercentageChange(Number(m.surveys_current_total) || 0, Number(m.surveys_prior_total) || 0)
+        : (Number(m.surveys_this_month) > 0 ? 100 : 0));
+
+  // Students: cumulative registered student body growth vs end of last month
+  const studentsPrior = Number(m.students_prior_total) || 0;
+  const studentsCurrent = Number(m.students_current_total) || Number(counts.total_students) || 0;
+  const studentsChange = studentsPrior > 0
+    ? calcPercentageChange(studentsCurrent, studentsPrior)
+    : (studentsCurrent > 0 ? 100 : 0);
+
+  // Responses: completed survey responses this month vs last month
   const responsesChange = calcPercentageChange(Number(m.responses_this_month) || 0, Number(m.responses_last_month) || 0);
 
   const curAttempts = Number(m.attempts_this_month) || 0;
@@ -186,7 +213,7 @@ async function getAdminDashboard() {
 
   const currentCompRate = curAttempts > 0 ? Math.round((curCompleted / curAttempts) * 100) : 0;
   const priorCompRate = prevAttempts > 0 ? Math.round((prevCompleted / prevAttempts) * 100) : 0;
-  const completionChange = currentCompRate - priorCompRate;
+  const completionChange = prevAttempts > 0 ? (currentCompRate - priorCompRate) : 0;
 
   let activityData;
   if (activityRes?.rows?.length > 0) {

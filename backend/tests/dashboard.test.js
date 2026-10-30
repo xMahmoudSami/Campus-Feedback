@@ -69,6 +69,61 @@ describe('Dashboard Endpoints', () => {
       expect(res.body.data.surveys_metrics.length).toBe(1);
       expect(res.body.data.surveys_metrics[0].view_to_response_rate_percent).toBe(50.0);
       expect(res.body.data.metrics_documentation).toBeDefined();
+      expect(res.body.data.changes).toBeDefined();
+    });
+
+    it('should calculate dynamic month-over-month percentage changes correctly', async () => {
+      vi.spyOn(db, 'query').mockImplementation(async (sql, params) => {
+        if (sql.includes('AS total_surveys')) {
+          return {
+            rows: [
+              {
+                total_surveys: 4,
+                draft_surveys: 0,
+                published_surveys: 4,
+                closed_surveys: 0,
+                total_students: 10,
+                total_responses: 20,
+                total_feedback: 5,
+                total_views: 40,
+              },
+            ],
+          };
+        }
+        if (sql.includes('surveys_this_month')) {
+          return {
+            rows: [
+              {
+                surveys_this_month: 2,
+                surveys_last_month: 1,
+                surveys_prior_total: 2,
+                surveys_current_total: 4,
+                students_this_month: 5,
+                students_last_month: 2,
+                students_prior_total: 5,
+                students_current_total: 10,
+                responses_this_month: 15,
+                responses_last_month: 10,
+                attempts_this_month: 20,
+                attempts_last_month: 15,
+              },
+            ],
+          };
+        }
+        return { rows: [] };
+      });
+
+      const res = await request(app)
+        .get('/api/dashboard/admin')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.changes).toEqual({
+        surveys_change: 100, // (2 - 1) / 1 * 100
+        students_change: 100, // (10 - 5) / 5 * 100
+        responses_change: 50, // (15 - 10) / 10 * 100
+        completion_change: 8, // (15/20 = 75%) - (10/15 = 67%) = +8%
+      });
     });
 
     it('should handle zero records gracefully and return structured zeroes', async () => {
