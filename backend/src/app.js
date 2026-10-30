@@ -17,15 +17,15 @@ const allowedOrigins = env.corsOrigin === '*'
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, postman) or if wildcard
-      if (!origin || allowedOrigins === '*' || allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (like mobile apps, curl, postman), file:// ('null'), or if wildcard/matched
+      if (!origin || origin === 'null' || allowedOrigins === '*' || allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
       return callback(new Error(`CORS policy blocked access from origin: ${origin}`));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Client-Time', 'x-client-time', 'Origin', 'X-Requested-With'],
   })
 );
 
