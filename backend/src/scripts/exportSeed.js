@@ -303,20 +303,20 @@ async function exportSeedData(options = {}) {
       }
     }
 
-    // 5. Export Feedback (Official demo student development feedback)
+    // 5. Export Feedback (Student development feedback across approved team accounts)
     const feedbackQuery = exportedSurveyIds.length > 0
       ? `SELECT f.id, f.student_id, f.survey_id, f.message, f.rating, f.created_at,
                 u.username as student_username
          FROM feedback f
          JOIN users u ON f.student_id = u.id
          WHERE (f.survey_id = ANY($1) OR f.survey_id IS NULL)
-           AND u.username = 'student'
+           AND u.username NOT LIKE 'real_user%'
          ORDER BY f.id ASC;`
       : `SELECT f.id, f.student_id, f.survey_id, f.message, f.rating, f.created_at,
                 u.username as student_username
          FROM feedback f
          JOIN users u ON f.student_id = u.id
-         WHERE u.username = 'student'
+         WHERE u.username NOT LIKE 'real_user%'
          ORDER BY f.id ASC;`;
 
     const feedbackParams = exportedSurveyIds.length > 0 ? [exportedSurveyIds] : [];
@@ -395,8 +395,9 @@ async function exportSeedData(options = {}) {
     for (const row of usersRes.rows) {
       const isOfficialDemo = (row.username === 'admin' || row.username === 'student');
       const isRelevant = relevantUserIds.has(row.id);
+      const isApprovedUser = !row.username.startsWith('real_user');
 
-      if (isOfficialDemo || (isRelevant && (row.role === 'student' || row.role === 'admin'))) {
+      if ((isOfficialDemo || isRelevant || row.role === 'student' || row.role === 'admin') && isApprovedUser) {
         const stableUuid = getStableUuid('users', row.id);
         const contentObj = {
           full_name: row.full_name,
