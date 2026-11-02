@@ -26,6 +26,14 @@ async function startServer() {
 
       const { seedDatabase } = require('./scripts/seed');
       await seedDatabase();
+
+      // Automatically sync shared development seed data if dev_seed.json is present
+      try {
+        const { importSeedData } = require('./scripts/importSeed');
+        await importSeedData();
+      } catch (seedErr) {
+        console.warn('[SEED SYNC WARNING] Could not auto-sync dev_seed.json:', seedErr.message);
+      }
     } else {
       console.warn('[DB WARNING] Database connection ping failed during startup:', conn.error);
     }
